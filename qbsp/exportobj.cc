@@ -49,9 +49,9 @@ static std::ofstream InitMtlFile(const std::string &filesuffix)
     return file;
 }
 
-static void ExportObjFace(std::ofstream &f, const face_t *face, int *vertcount)
+static void ExportObjFace(std::ofstream &f, const face_t &face, int *vertcount)
 {
-    const mtexinfo_t &texinfo = map.mtexinfos.at(face->texinfo);
+    const mtexinfo_t &texinfo = map.mtexinfos.at(face.texinfo);
     const char *texname = map.miptexTextureName(texinfo.miptex).c_str();
 
     const texture_t *texture = WADList_GetTexture(texname);
@@ -59,8 +59,8 @@ static void ExportObjFace(std::ofstream &f, const face_t *face, int *vertcount)
     const int height = texture ? texture->height : 64;
 
     // export the vertices and uvs
-    for (int i = 0; i < face->w.size(); i++) {
-        const qvec3d &pos = face->w[i];
+    for (int i = 0; i < face.w.size(); i++) {
+        const qvec3d &pos = face.w[i];
         fmt::print(f, "v {:.9} {:.9} {:.9}\n", pos[0], pos[1], pos[2]);
 
         qvec3d uv = texinfo.vecs.uvs(pos, width, height);
@@ -69,17 +69,17 @@ static void ExportObjFace(std::ofstream &f, const face_t *face, int *vertcount)
         fmt::print(f, "vt {:.9} {:.9}\n", uv[0], -uv[1]);
     }
 
-    fmt::print(f, "usemtl contents{}_{}\n", face->contents[0].native, face->contents[0].extended);
+    fmt::print(f, "usemtl contents{}_{}\n", face.contents[0].native, face.contents[0].extended);
     f << 'f';
-    for (int i = 0; i < face->w.size(); i++) {
+    for (int i = 0; i < face.w.size(); i++) {
         // .obj vertexes start from 1
         // .obj faces are CCW, quake is CW, so reverse the order
-        const int vertindex = *vertcount + (face->w.size() - 1 - i) + 1;
+        const int vertindex = *vertcount + (face.w.size() - 1 - i) + 1;
         fmt::print(f, " {}/{}", vertindex, vertindex);
     }
     f << '\n';
 
-    *vertcount += face->w.size();
+    *vertcount += face.w.size();
 }
 
 static void WriteContentsMaterial(std::ofstream &mtlf, contentflags_t contents, float r, float g, float b)
@@ -91,7 +91,8 @@ static void WriteContentsMaterial(std::ofstream &mtlf, contentflags_t contents, 
     mtlf << "illum 0\n";
 }
 
-void ExportObj_Faces(const std::string &filesuffix, const std::vector<const face_t *> &faces)
+template<typename T>
+inline void ExportObj_Faces(const std::string &filesuffix, T faces_callback)
 {
     std::ofstream objfile = InitObjFile(filesuffix);
     std::ofstream mtlfile = InitMtlFile(filesuffix);
@@ -110,55 +111,56 @@ void ExportObj_Faces(const std::string &filesuffix, const std::vector<const face
 
     WriteContentsMaterial(mtlfile, {CONTENTS_SOLID, CFLAGS_DETAIL}, 0.5, 0.5, 0.5);
 
-    int vertcount = 0;
-    for (const face_t *face : faces) {
-        ExportObjFace(objfile, face, &vertcount);
-    }
+    faces_callback(objfile);
 }
 
 void ExportObj_Brushes(const std::string &filesuffix, const std::vector<const brush_t *> &brushes)
 {
-    std::vector<const face_t *> faces;
-
-    for (const brush_t *brush : brushes)
-        for (const face_t *face = brush->faces; face; face = face->next)
-            faces.push_back(face);
-
-    ExportObj_Faces(filesuffix, faces);
+    ExportObj_Faces(filesuffix, [&brushes](std::ofstream &objfile) {
+        int vertcount = 0;
+        for (const brush_t *brush : brushes) {
+            for (auto &face : brush->faces) {
+                ExportObjFace(objfile, face, &vertcount);
+            }
+        }
+    });
 }
 
 void ExportObj_Surfaces(const std::string &filesuffix, const surface_t *surfaces)
 {
-    std::vector<const face_t *> faces;
-
-    for (const surface_t *surf = surfaces; surf; surf = surf->next) {
-        for (const face_t *face = surf->faces; face; face = face->next) {
-            faces.push_back(face);
+    ExportObj_Faces(filesuffix, [surfaces](std::ofstream &objfile) {
+        int vertcount = 0;
+        for (const surface_t *surf = surfaces; surf; surf = surf->next) {
+            for (const face_t *face = surf->faces; face; face = face->next) {
+                ExportObjFace(objfile, *face, &vertcount);
+            }
         }
-    }
-
-    ExportObj_Faces(filesuffix, faces);
+    });
 }
 
-static void ExportObj_Nodes_r(const node_t *node, std::vector<const face_t *> *dest)
+template<typename T>
+static void ExportObj_Nodes_r(const node_t *node, T &face_callback)
 {
     if (node->planenum == PLANENUM_LEAF) {
         return;
     }
 
     for (face_t *face = node->faces; face; face = face->next) {
-        dest->push_back(face);
+        face_callback(*face);
     }
 
-    ExportObj_Nodes_r(node->children[0], dest);
-    ExportObj_Nodes_r(node->children[1], dest);
+    ExportObj_Nodes_r(node->children[0], face_callback);
+    ExportObj_Nodes_r(node->children[1], face_callback);
 }
 
 void ExportObj_Nodes(const std::string &filesuffix, const node_t *nodes)
 {
-    std::vector<const face_t *> faces;
-    ExportObj_Nodes_r(nodes, &faces);
-    ExportObj_Faces(filesuffix, faces);
+    ExportObj_Faces(filesuffix, [nodes](std::ofstream &objfile) {
+        int vertcount = 0;
+        ExportObj_Nodes_r(nodes, [&objfile, &vertcount](const face_t &face) {
+            ExportObjFace(objfile, face, &vertcount);
+        });
+    });
 }
 
 static void ExportObj_Marksurfaces_r(const node_t *node, std::unordered_set<const face_t *> *dest)
@@ -186,11 +188,10 @@ void ExportObj_Marksurfaces(const std::string &filesuffix, const node_t *nodes)
     std::unordered_set<const face_t *> faces;
     ExportObj_Marksurfaces_r(nodes, &faces);
 
-    // copy to a vector
-    std::vector<const face_t *> faces_vec;
-    faces_vec.reserve(faces.size());
-    for (const face_t *face : faces) {
-        faces_vec.push_back(face);
-    }
-    ExportObj_Faces(filesuffix, faces_vec);
+    ExportObj_Faces(filesuffix, [&faces](std::ofstream &objfile) {
+        int vertcount = 0;
+        for (const face_t *face : faces) {
+            ExportObjFace(objfile, *face, &vertcount);
+        }
+    });
 }

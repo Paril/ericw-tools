@@ -1906,7 +1906,7 @@ void LoadMapFile(void)
         }
         // Remove dummy entity inserted above
         assert(!map.entities.back().epairs.size());
-        assert(map.entities.back().numbrushes == 0);
+        assert(map.entities.back().brushes.size() == 0);
         map.entities.pop_back();
     }
 
@@ -2187,7 +2187,7 @@ WriteBspBrushMap
 from q3map
 ==================
 */
-void WriteBspBrushMap(const std::filesystem::path &name, const std::vector<const brush_t *> &list)
+void WriteBspBrushMap(const std::filesystem::path &name, const std::vector<brush_t> &list)
 {
     LogPrint("writing {}\n", name);
     std::ofstream f(name);
@@ -2197,13 +2197,13 @@ void WriteBspBrushMap(const std::filesystem::path &name, const std::vector<const
 
     fmt::print(f, "{{\n\"classname\" \"worldspawn\"\n");
 
-    for (const brush_t *brush : list) {
+    for (auto &brush : list) {
         fmt::print(f, "{{\n");
-        for (const face_t *face = brush->faces; face; face = face->next) {
+        for (auto &face : brush.faces) {
             // FIXME: Factor out this mess
-            qbsp_plane_t plane = map.planes.at(face->planenum);
+            qbsp_plane_t plane = map.planes.at(face.planenum);
 
-            if (face->planeside) {
+            if (face.planeside) {
                 plane = -plane;
             }
 
@@ -2234,15 +2234,15 @@ from q3map
 */
 static void TestExpandBrushes(const mapentity_t *src)
 {
-    std::vector<const brush_t *> hull1brushes;
+    std::vector<brush_t> hull1brushes;
 
     for (int i = 0; i < src->nummapbrushes; i++) {
         const mapbrush_t *mapbrush = &src->mapbrush(i);
-        brush_t *hull1brush = LoadBrush(
+        std::optional<brush_t> hull1brush = LoadBrush(
             src, mapbrush, {CONTENTS_SOLID}, {}, rotation_t::none, options.target_game->id == GAME_QUAKE_II ? -1 : 1);
 
-        if (hull1brush != nullptr)
-            hull1brushes.push_back(hull1brush);
+        if (hull1brush)
+            hull1brushes.emplace_back(std::move(hull1brush.value()));
     }
 
     WriteBspBrushMap("expanded.map", hull1brushes);

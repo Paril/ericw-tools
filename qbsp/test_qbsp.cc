@@ -118,16 +118,15 @@ TEST(qbsp, duplicatePlanes)
 
     mapentity_t worldspawn = LoadMap(mapWithDuplicatePlanes);
     ASSERT_EQ(1, worldspawn.nummapbrushes);
-    EXPECT_EQ(0, worldspawn.numbrushes);
+    EXPECT_EQ(0, worldspawn.brushes.size());
     EXPECT_EQ(6, worldspawn.mapbrush(0).numfaces);
 
-    brush_t *brush = LoadBrush(&worldspawn, &worldspawn.mapbrush(0), {CONTENTS_SOLID}, {}, rotation_t::none, 0);
-    ASSERT_NE(nullptr, brush);
-    EXPECT_EQ(6, Brush_NumFaces(brush));
-    FreeBrush(brush);
+    std::optional<brush_t> brush = LoadBrush(&worldspawn, &worldspawn.mapbrush(0), {CONTENTS_SOLID}, {}, rotation_t::none, 0);
+    ASSERT_NE(std::nullopt, brush);
+    EXPECT_EQ(6, brush->faces.size());
 }
 
-static brush_t *load128x128x32Brush()
+static brush_t load128x128x32Brush()
 {
     /* 128x128x32 rectangular brush */
     const char *map = R"(
@@ -147,12 +146,13 @@ static brush_t *load128x128x32Brush()
     mapentity_t worldspawn = LoadMap(map);
     Q_assert(1 == worldspawn.nummapbrushes);
 
-    brush_t *brush = LoadBrush(&worldspawn, &worldspawn.mapbrush(0), {CONTENTS_SOLID}, {}, rotation_t::none, 0);
-    Q_assert(nullptr != brush);
+    std::optional<brush_t> brush = LoadBrush(&worldspawn, &worldspawn.mapbrush(0), {CONTENTS_SOLID}, {}, rotation_t::none, 0);
+  
+    Q_assert(brush.has_value());
 
     brush->contents = {CONTENTS_SOLID};
 
-    return brush;
+    return brush.value();
 }
 
 static void checkForAllCubeNormals(const brush_t *brush)
@@ -164,8 +164,8 @@ static void checkForAllCubeNormals(const brush_t *brush)
         found[i] = false;
     }
 
-    for (const face_t *face = brush->faces; face; face = face->next) {
-        const qplane3d faceplane = Face_Plane(face);
+    for (auto &face : brush->faces) {
+        const qplane3d faceplane = Face_Plane(&face);
 
         for (int i = 0; i < 6; i++) {
             if (qv::epsilonEqual(wanted[i], faceplane.normal, NORMAL_EPSILON)) {
@@ -182,7 +182,7 @@ static void checkForAllCubeNormals(const brush_t *brush)
 
 static void checkCube(const brush_t *brush)
 {
-    EXPECT_EQ(6, Brush_NumFaces(brush));
+    EXPECT_EQ(6, brush->faces.size());
 
     checkForAllCubeNormals(brush);
 

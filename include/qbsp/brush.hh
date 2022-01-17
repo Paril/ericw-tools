@@ -24,22 +24,56 @@
 #include <qbsp/winding.hh>
 #include <common/aabb.hh>
 
+/*
+ * The brush list needs to be ordered (lowest to highest priority):
+ * - detail_illusionary (which is saved as empty)
+ * - liquid
+ * - detail_fence
+ * - detail (which is solid)
+ * - sky
+ * - solid
+ */
+enum brush_type_t
+{
+    BRUSH_SOLID,
+    BRUSH_SKY,
+    BRUSH_DETAIL,
+    BRUSH_DETAIL_ILLUSIONARY,
+    BRUSH_DETAIL_FENCE,
+    BRUSH_LIQUID,
+    BRUSH_TOTAL
+};
+
+static constexpr const char *brush_type_names[BRUSH_TOTAL] = {
+    "solid",
+    "sky",
+    "detail",
+    "detail illusionary",
+    "detail fence",
+    "liquid"
+};
+
+void FreeBrushFaces(face_t *faces);
+
 struct brush_t
 {
-    brush_t *next;
+    brush_type_t type = BRUSH_TOTAL; /* brush type; defaulted to invalid value */
     aabb3d bounds;
-    face_t *faces;
+    std::vector<face_t> faces;
     contentflags_t contents; /* BSP contents */
-    short lmshift; /* lightmap scaling (qu/lightmap pixel), passed to the light util */
+    short lmshift = 0; /* lightmap scaling (qu/lightmap pixel), passed to the light util */
+
+    inline brush_t(contentflags_t contents, std::vector<face_t> &&faces, aabb3d bounds) :
+        contents(contents),
+        faces(faces),
+        bounds(bounds)
+    {
+    }
 };
 
 class mapbrush_t;
 
 qplane3d Face_Plane(const face_t *face);
-
-int Brush_ListCountWithCFlags(const brush_t *brush, int cflags);
-int Brush_ListCount(const brush_t *brush);
-int Brush_NumFaces(const brush_t *brush);
 
 enum class rotation_t
 {
@@ -48,8 +82,8 @@ enum class rotation_t
     origin_brush
 };
 
-brush_t *LoadBrush(const mapentity_t *src, const mapbrush_t *mapbrush, const contentflags_t &contents,
-    const qvec3d &rotate_offset, const rotation_t rottype, const int hullnum);
+std::optional<brush_t> LoadBrush(const mapentity_t *src, const mapbrush_t *mapbrush, const contentflags_t &contents,
+                                 const qvec3d &rotate_offset, const rotation_t rottype, const int hullnum);
 void FreeBrushes(mapentity_t *ent);
 
 int FindPlane(const qplane3d &plane, int *side);

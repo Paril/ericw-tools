@@ -297,11 +297,11 @@ static bool DiscardHintSkipFace_Q2(const mtexinfo_t &texinfo)
 CreateBrushFaces
 =================
 */
-static face_t *CreateBrushFaces(const mapentity_t *src, hullbrush_t *hullbrush, const int hullnum,
-                                const rotation_t rottype = rotation_t::none, const qvec3d &rotate_offset = {})
+static std::vector<face_t> CreateBrushFaces(const mapentity_t *src, hullbrush_t *hullbrush, const int hullnum,
+                                            const rotation_t rottype = rotation_t::none, const qvec3d &rotate_offset = {})
 {
     vec_t r;
-    face_t *f;
+    std::vector<face_t> faces;
     std::optional<winding_t> w;
     qbsp_plane_t plane;
     face_t *facelist = NULL;
@@ -343,30 +343,30 @@ static face_t *CreateBrushFaces(const mapentity_t *src, hullbrush_t *hullbrush, 
             continue; // overconstrained plane
 
         // this face is a keeper
-        f = new face_t{};
-        f->planenum = PLANENUM_LEAF;
+        auto &f = faces.emplace_back(face_t {});
+        f.planenum = PLANENUM_LEAF;
 
         if (w->size() > MAXEDGES)
             FError("face->numpoints > MAXEDGES ({}), source face on line {}", MAXEDGES, mapface.linenum);
 
-        f->w.resize(w->size());
+        f.w.resize(w->size());
 
         for (size_t j = 0; j < w->size(); j++) {
             for (size_t k = 0; k < 3; k++) {
                 point[k] = w->at(j)[k] - rotate_offset[k];
                 r = Q_rint(point[k]);
                 if (fabs(point[k] - r) < ZERO_EPSILON)
-                    f->w[j][k] = r;
+                    f.w[j][k] = r;
                 else
-                    f->w[j][k] = point[k];
+                    f.w[j][k] = point[k];
 
-                if (f->w[j][k] < min)
-                    min = f->w[j][k];
-                if (f->w[j][k] > max)
-                    max = f->w[j][k];
+                if (f.w[j][k] < min)
+                    min = f.w[j][k];
+                if (f.w[j][k] > max)
+                    max = f.w[j][k];
             }
 
-            hullbrush->bounds += f->w[j];
+            hullbrush->bounds += f.w[j];
         }
 
         // account for texture offset, from txqbsp-xt
@@ -385,14 +385,12 @@ static face_t *CreateBrushFaces(const mapentity_t *src, hullbrush_t *hullbrush, 
         point -= rotate_offset;
         plane.dist = qv::dot(plane.normal, point);
 
-        f->texinfo = hullnum > 0 ? 0 : mapface.texinfo;
-        f->planenum = FindPlane(plane, &f->planeside);
-        f->src_entity = const_cast<mapentity_t *>(src); // FIXME: get rid of consts on src in the callers?
+        f.texinfo = hullnum > 0 ? 0 : mapface.texinfo;
+        f.planenum = FindPlane(plane, &f.planeside);
+        f.src_entity = const_cast<mapentity_t *>(src); // FIXME: get rid of consts on src in the callers?
 
-        f->next = facelist;
-        facelist = f;
-        CheckFace(f, mapface);
-        UpdateFaceSphere(f);
+        CheckFace(&f, mapface);
+        UpdateFaceSphere(&f);
     }
 
     // Rotatable objects must have a bounding box big enough to
@@ -417,19 +415,19 @@ static face_t *CreateBrushFaces(const mapentity_t *src, hullbrush_t *hullbrush, 
         hullbrush->bounds = {-delta, delta};
     }
 
-    return facelist;
+    return faces;
 }
 
 /*
-=================
+=====================
 FreeBrushFaces
-=================
+=====================
 */
-static void FreeBrushFaces(face_t *facelist)
+void FreeBrushFaces(face_t *faces)
 {
     face_t *face, *next;
 
-    for (face = facelist; face; face = next) {
+    for (face = faces; face; face = next) {
         next = face->next;
         delete face;
     }
@@ -442,24 +440,7 @@ FreeBrushes
 */
 void FreeBrushes(mapentity_t *ent)
 {
-    brush_t *brush, *next;
-
-    for (brush = ent->brushes; brush; brush = next) {
-        next = brush->next;
-        FreeBrush(brush);
-    }
-    ent->brushes = nullptr;
-}
-
-/*
-=====================
-FreeBrush
-=====================
-*/
-void FreeBrush(brush_t *brush)
-{
-    FreeBrushFaces(brush->faces);
-    delete brush;
+    ent->brushes.clear();
 }
 
 /*
@@ -640,10 +621,9 @@ static void AddHullEdge(hullbrush_t *hullbrush, const qvec3d &p1, const qvec3d &
 ExpandBrush
 =============
 */
-static void ExpandBrush(hullbrush_t *hullbrush, const aabb3d &hull_size, const face_t *facelist)
+static void ExpandBrush(hullbrush_t *hullbrush, const aabb3d &hull_size, const std::vector<face_t> &facelist)
 {
     int x, s;
-    const face_t *f;
     qbsp_plane_t plane;
     int cBevEdge = 0;
 
@@ -652,9 +632,9 @@ static void ExpandBrush(hullbrush_t *hullbrush, const aabb3d &hull_size, const f
     hullbrush->edges.clear();
 
     // create all the hull points
-    for (f = facelist; f; f = f->next)
-        for (size_t i = 0; i < f->w.size(); i++) {
-            AddHullPoint(hullbrush, f->w[i], hull_size);
+    for (auto &f : facelist)
+        for (size_t i = 0; i < f.w.size(); i++) {
+            AddHullPoint(hullbrush, f.w[i], hull_size);
             cBevEdge++;
         }
 
@@ -686,9 +666,9 @@ static void ExpandBrush(hullbrush_t *hullbrush, const aabb3d &hull_size, const f
         }
 
     // add all of the edge bevels
-    for (f = facelist; f; f = f->next)
-        for (size_t i = 0; i < f->w.size(); i++)
-            AddHullEdge(hullbrush, f->w[i], f->w[(i + 1) % f->w.size()], hull_size);
+    for (auto &f : facelist)
+        for (size_t i = 0; i < f.w.size(); i++)
+            AddHullEdge(hullbrush, f.w[i], f.w[(i + 1) % f.w.size()], hull_size);
 }
 
 //============================================================================
@@ -750,12 +730,10 @@ LoadBrush
 Converts a mapbrush to a bsp brush
 ===============
 */
-brush_t *LoadBrush(const mapentity_t *src, const mapbrush_t *mapbrush, const contentflags_t &contents,
-    const qvec3d &rotate_offset, const rotation_t rottype, const int hullnum)
+std::optional<brush_t> LoadBrush(const mapentity_t *src, const mapbrush_t *mapbrush, const contentflags_t &contents,
+                                 const qvec3d &rotate_offset, const rotation_t rottype, const int hullnum)
 {
     hullbrush_t hullbrush;
-    brush_t *brush;
-    face_t *facelist;
 
     // create the faces
 
@@ -769,6 +747,8 @@ brush_t *LoadBrush(const mapentity_t *src, const mapbrush_t *mapbrush, const con
     for (int i = 0; i < mapbrush->numfaces; i++)
         hullbrush.faces.emplace_back(mapbrush->face(i));
 
+    std::vector<face_t> facelist;
+
     if (hullnum <= 0) {
         // for hull 0 or BSPX -wrbrushes collision, apply the rotation offset now
         facelist = CreateBrushFaces(src, &hullbrush, hullnum, rottype, rotate_offset);
@@ -778,121 +758,28 @@ brush_t *LoadBrush(const mapentity_t *src, const mapbrush_t *mapbrush, const con
         facelist = CreateBrushFaces(src, &hullbrush, hullnum);
     }
 
-    if (!facelist) {
+    if (facelist.empty()) {
         LogPrint("WARNING: Couldn't create brush faces\n");
         LogPrint("^ brush at line {} of .map file\n", hullbrush.linenum);
-        return NULL;
+        return std::nullopt;
     }
 
     if (hullnum > 0) {
         auto &hulls = options.target_game->get_hull_sizes();
         Q_assert(hullnum < hulls.size());
         ExpandBrush(&hullbrush, *(hulls.begin() + hullnum), facelist);
-        FreeBrushFaces(facelist);
         facelist = CreateBrushFaces(src, &hullbrush, hullnum, rottype, rotate_offset);
     }
 
     // create the brush
-    brush = new brush_t{};
-
-    brush->contents = contents;
-    brush->faces = facelist;
-    brush->bounds = hullbrush.bounds;
-
-    return brush;
+    return brush_t { contents, std::move(facelist), hullbrush.bounds };
 }
 
 //=============================================================================
 
-static brush_t *Brush_ListTail(brush_t *brush)
-{
-    if (brush == nullptr) {
-        return nullptr;
-    }
+using typed_brush_array_t = std::array<std::vector<brush_t>, BRUSH_TOTAL>;
 
-    while (brush->next != nullptr) {
-        brush = brush->next;
-    }
-
-    Q_assert(brush->next == nullptr);
-    return brush;
-}
-
-int Brush_ListCountWithCFlags(const brush_t *brush, int cflags)
-{
-    int cnt = 0;
-    for (const brush_t *b = brush; b; b = b->next) {
-        if (cflags == (b->contents.extended & cflags))
-            cnt++;
-    }
-    return cnt;
-}
-
-int Brush_ListCount(const brush_t *brush)
-{
-    return Brush_ListCountWithCFlags(brush, 0);
-}
-
-static int FaceListCount(const face_t *facelist)
-{
-    if (facelist)
-        return 1 + FaceListCount(facelist->next);
-    else
-        return 0;
-}
-
-int Brush_NumFaces(const brush_t *brush)
-{
-    return FaceListCount(brush->faces);
-}
-
-void Entity_SortBrushes(mapentity_t *dst)
-{
-    Q_assert(dst->brushes == nullptr);
-
-    brush_t **nextLink = &dst->brushes;
-
-    if (dst->detail_illusionary) {
-        brush_t *last = Brush_ListTail(dst->detail_illusionary);
-        *nextLink = dst->detail_illusionary;
-        nextLink = &last->next;
-    }
-    if (dst->liquid) {
-        brush_t *last = Brush_ListTail(dst->liquid);
-        *nextLink = dst->liquid;
-        nextLink = &last->next;
-    }
-    if (dst->detail_fence) {
-        brush_t *last = Brush_ListTail(dst->detail_fence);
-        *nextLink = dst->detail_fence;
-        nextLink = &last->next;
-    }
-    if (dst->detail) {
-        brush_t *last = Brush_ListTail(dst->detail);
-        *nextLink = dst->detail;
-        nextLink = &last->next;
-    }
-    if (dst->sky) {
-        brush_t *last = Brush_ListTail(dst->sky);
-        *nextLink = dst->sky;
-        nextLink = &last->next;
-    }
-    if (dst->solid) {
-        brush_t *last = Brush_ListTail(dst->solid);
-        *nextLink = dst->solid;
-        nextLink = &last->next;
-    }
-}
-
-/*
-============
-Brush_LoadEntity
-
-hullnum -1 should contain ALL brushes. (used by BSPX_CreateBrushList())
-hullnum 0 does not contain clip brushes.
-============
-*/
-void Brush_LoadEntity(mapentity_t *dst, const mapentity_t *src, const int hullnum)
+static void Brush_LoadEntity(mapentity_t *dst, const mapentity_t *src, const int hullnum, typed_brush_array_t &brushes)
 {
     const char *classname;
     const mapbrush_t *mapbrush;
@@ -900,16 +787,7 @@ void Brush_LoadEntity(mapentity_t *dst, const mapentity_t *src, const int hullnu
     int i;
     int lmshift;
     bool all_detail, all_detail_fence, all_detail_illusionary;
-
-    /*
-     * The brush list needs to be ordered (lowest to highest priority):
-     * - detail_illusionary (which is saved as empty)
-     * - liquid
-     * - detail_fence
-     * - detail (which is solid)
-     * - sky
-     * - solid
-     */
+    const bool is_world = dst == pWorldEnt();
 
     classname = ValueForKey(src, "classname");
 
@@ -920,20 +798,19 @@ void Brush_LoadEntity(mapentity_t *dst, const mapentity_t *src, const int hullnu
         const mapbrush_t *mapbrush = &src->mapbrush(i);
         const contentflags_t contents = Brush_GetContents(mapbrush);
         if (contents.is_origin()) {
-            if (dst == pWorldEnt()) {
+            if (is_world) {
                 LogPrint("WARNING: Ignoring origin brush in worldspawn\n");
                 continue;
             }
 
-            brush_t *brush = LoadBrush(src, mapbrush, contents, {}, rotation_t::none, 0);
-            if (brush) {
+            std::optional<brush_t> brush = LoadBrush(src, mapbrush, contents, {}, rotation_t::none, 0);
+
+            if (brush.has_value()) {
                 rotate_offset = brush->bounds.centroid();
 
                 SetKeyValue(dst, "origin", qv::to_string(rotate_offset).c_str());
 
                 rottype = rotation_t::origin_brush;
-
-                FreeBrush(brush);
             }
         }
     }
@@ -1042,10 +919,10 @@ void Brush_LoadEntity(mapentity_t *dst, const mapentity_t *src, const int hullnu
          */
         if (contents.is_clip()) {
             if (hullnum == 0) {
-                brush_t *brush = LoadBrush(src, mapbrush, contents, rotate_offset, rottype, hullnum);
-                if (brush) {
+                std::optional<brush_t> brush = LoadBrush(src, mapbrush, contents, rotate_offset, rottype, hullnum);
+
+                if (brush.has_value()) {
                     dst->bounds += brush->bounds;
-                    FreeBrush(brush);
                 }
 
                 continue;
@@ -1065,20 +942,20 @@ void Brush_LoadEntity(mapentity_t *dst, const mapentity_t *src, const int hullnu
         }
 
         /* entities never use water merging */
-        if (dst != pWorldEnt()) {
+        if (!is_world) {
             contents = options.target_game->create_solid_contents();
-        }
 
-        /* Hack to turn bmodels with "_mirrorinside" into func_detail_fence in hull 0.
-           this is to allow "_mirrorinside" to work on func_illusionary, func_wall, etc.
-           Otherwise they would be CONTENTS_SOLID and the inside faces would be deleted.
+            /* Hack to turn bmodels with "_mirrorinside" into func_detail_fence in hull 0.
+               this is to allow "_mirrorinside" to work on func_illusionary, func_wall, etc.
+               Otherwise they would be CONTENTS_SOLID and the inside faces would be deleted.
 
-           It's CONTENTS_DETAIL_FENCE because this gets mapped to CONTENTS_SOLID just
-           before writing the bsp, and bmodels normally have CONTENTS_SOLID as their
-           contents type.
-         */
-        if (dst != pWorldEnt() && hullnum <= 0 && mirrorinside) {
-            contents = options.target_game->create_extended_contents(CFLAGS_DETAIL_FENCE);
+               It's CONTENTS_DETAIL_FENCE because this gets mapped to CONTENTS_SOLID just
+               before writing the bsp, and bmodels normally have CONTENTS_SOLID as their
+               contents type.
+             */
+            if (hullnum <= 0 && mirrorinside) {
+                contents = options.target_game->create_extended_contents(CFLAGS_DETAIL_FENCE);
+            }
         }
 
         /* nonsolid brushes don't show up in clipping hulls */
@@ -1100,37 +977,84 @@ void Brush_LoadEntity(mapentity_t *dst, const mapentity_t *src, const int hullnu
             contents.extended |= CFLAGS_ILLUSIONARY_VISBLOCKER;
         }
 
-        brush_t *brush = LoadBrush(src, mapbrush, contents, rotate_offset, rottype, hullnum);
-        if (!brush)
+        std::optional<brush_t> brush = LoadBrush(src, mapbrush, contents, rotate_offset, rottype, hullnum);
+        
+        if (!brush.has_value())
             continue;
 
-        dst->numbrushes++;
-        brush->lmshift = lmshift;
-
-        brush_t** front;
-
         if (brush->contents.is_solid(options.target_game)) {
-            front = &dst->solid;
+            brush->type = BRUSH_SOLID;
         } else if (brush->contents.is_sky(options.target_game)) {
-            front = &dst->sky;
+            brush->type = BRUSH_SKY;
         } else if (brush->contents.is_detail(CFLAGS_DETAIL)) {
-            front = &dst->detail;
+            brush->type = BRUSH_DETAIL;
         } else if (brush->contents.is_detail(CFLAGS_DETAIL_ILLUSIONARY)) {
-            front = &dst->detail_illusionary;
+            brush->type = BRUSH_DETAIL_ILLUSIONARY;
         } else if (brush->contents.is_detail(CFLAGS_DETAIL_FENCE)) {
-            front = &dst->detail_fence;
+            brush->type = BRUSH_DETAIL_FENCE;
         } else {
-            front = &dst->liquid;
+            brush->type = BRUSH_LIQUID;
         }
 
-        if (!*front) {
-            *front = brush;
-        } else {
-            Brush_ListTail(*front)->next = brush;
-        }
+        brush->lmshift = lmshift;
 
         dst->bounds += brush->bounds;
 
+        brushes[brush->type].emplace_back(std::move(brush.value()));
+
         LogPercent(i + 1, src->nummapbrushes);
     }
+}
+
+/**
+===========
+Entity_SortBrushes
+
+Merges the temporary brush lists into the entity's `brushes` field
+in the correct order.
+===========
+*/
+static void Entity_SortBrushes(mapentity_t *dst, typed_brush_array_t &brushes)
+{
+    Q_assert(dst->brushes.empty());
+
+    for (auto &list : brushes) {
+        dst->brushes.insert(dst->brushes.end(), make_move_iterator(list.begin()), make_move_iterator(list.end()));
+    }
+}
+
+/*
+============
+Brush_LoadEntity
+
+hullnum -1 should contain ALL brushes. (used by BSPX_CreateBrushList())
+hullnum 0 does not contain clip brushes.
+============
+*/
+void Brush_LoadEntity(mapentity_t *dst, const mapentity_t *src, const int hullnum)
+{
+    typed_brush_array_t brushes;
+
+    Brush_LoadEntity(dst, src, hullnum, brushes);
+
+    /*
+     * If this is the world entity, find all func_group and func_detail
+     * entities and add their brushes with the appropriate contents flag set.
+     */
+    if (dst == pWorldEnt()) {
+        for (size_t i = 1; i < map.numentities(); i++) {
+            mapentity_t *source = &map.entities.at(i);
+
+            /* Load external .map and change the classname, if needed */
+            ProcessExternalMapEntity(source);
+
+            ProcessAreaPortal(source);
+
+            if (IsWorldBrushEntity(source) || IsNonRemoveWorldBrushEntity(source)) {
+                Brush_LoadEntity(dst, source, hullnum, brushes);
+            }
+        }
+    }
+
+    Entity_SortBrushes(dst, brushes);
 }

@@ -89,16 +89,11 @@ public:
     int firstmapbrush = 0;
     int nummapbrushes = 0;
 
-    // Temporary lists used to build `brushes` in the correct order.
-    brush_t *solid = nullptr, *sky = nullptr, *detail = nullptr, *detail_illusionary = nullptr, *detail_fence = nullptr,
-            *liquid = nullptr;
-
     // key/value pairs in the order they were parsed
     std::vector<std::pair<std::string, std::string>> epairs;
 
     aabb3d bounds;
-    brush_t *brushes = nullptr; /* NULL terminated list */
-    int numbrushes = 0;
+    std::vector<brush_t> brushes;
 
     int firstoutputfacenumber = -1;
     std::optional<size_t> outputmodelnumber = std::nullopt;
@@ -209,9 +204,6 @@ void FixRotateOrigin(mapentity_t *entity);
 /* Create BSP brushes from map brushes in src and save into dst */
 void Brush_LoadEntity(mapentity_t *dst, const mapentity_t *src, const int hullnum);
 
-/* Builds the dst->brushes list. Call after Brush_LoadEntity. */
-void Entity_SortBrushes(mapentity_t *dst);
-
 surface_t *CSGFaces(const mapentity_t *entity);
 void PortalizeWorld(const mapentity_t *entity, node_t *headnode, const int hullnum);
 void TJunc(const mapentity_t *entity, node_t *headnode);
@@ -226,9 +218,8 @@ struct bspxbrushes_s
 };
 void BSPX_Brushes_Finalize(struct bspxbrushes_s *ctx);
 void BSPX_Brushes_Init(struct bspxbrushes_s *ctx);
-void BSPX_Brushes_AddModel(struct bspxbrushes_s *ctx, int modelnum, brush_t *brushes);
+void BSPX_Brushes_AddModel(struct bspxbrushes_s *ctx, int modelnum, std::vector<brush_t> &brushes);
 
-void ExportObj_Faces(const std::string &filesuffix, const std::vector<const face_t *> &faces);
 void ExportObj_Brushes(const std::string &filesuffix, const std::vector<const brush_t *> &brushes);
 void ExportObj_Surfaces(const std::string &filesuffix, const surface_t *surfaces);
 void ExportObj_Nodes(const std::string &filesuffix, const node_t *nodes);
