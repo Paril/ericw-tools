@@ -513,7 +513,7 @@ static void CalcPoints_Debug(const lightsurf_t *surf, const mbsp_t *bsp)
         for (int s = 0; s < surf->width; s++) {
             const int i = t * surf->width + s;
             const qvec3d &point = surf->points[i];
-            const qvec3f mangle = mangle_from_vec(qvec3d(surf->normals[i]));
+            const qvec3d mangle = qv::mangle_from_vec(qvec3d(surf->normals[i]));
 
             f << "{\n";
             f << "\"classname\" \"light\"\n";

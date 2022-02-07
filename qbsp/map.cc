@@ -304,14 +304,6 @@ int FindTexinfo(const mtexinfo_t &texinfo)
     return num_texinfo;
 }
 
-/* detect colors with components in 0-1 and scale them to 0-255 */
-constexpr void normalize_color_format(qvec3d &color)
-{
-    if (color[0] >= 0 && color[0] <= 1 && color[1] >= 0 && color[1] <= 1 && color[2] >= 0 && color[2] <= 1) {
-        color *= 255;
-    }
-}
-
 static surfflags_t SurfFlagsForEntity(const mtexinfo_t &texinfo, const mapentity_t *entity)
 {
     surfflags_t flags{};
@@ -412,7 +404,7 @@ static surfflags_t SurfFlagsForEntity(const mtexinfo_t &texinfo, const mapentity
             GetVectorForKey(entity, "_minlight_color", mincolor);
         }
 
-        normalize_color_format(mincolor);
+        mincolor = qv::normalize_color_format(mincolor);
         if (!qv::epsilonEmpty(mincolor, EQUAL_EPSILON)) {
             for (int32_t i = 0; i < 3; i++) {
                 flags.minlight_color[i] = clamp(mincolor[i], 0.0, 255.0);

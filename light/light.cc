@@ -124,16 +124,14 @@ qvec3d dump_vert_point{};
 
 bool arghradcompat = false; // mxd
 
-lockable_setting_t *FindSetting(std::string name)
+settings::lockable_base *FindSetting(std::string name)
 {
-    settingsdict_t sd = cfg_static.settings();
-    return sd.findSetting(name);
+    return cfg_static.settings.findSetting(name);
 }
 
 void SetGlobalSetting(std::string name, std::string value, bool cmdline)
 {
-    settingsdict_t sd = cfg_static.settings();
-    sd.setSetting(name, value, cmdline);
+    cfg_static.settings.setSetting(name, value, cmdline);
 }
 
 void FixupGlobalSettings()
@@ -143,7 +141,7 @@ void FixupGlobalSettings()
     once = true;
 
     // NOTE: This is confusing.. Setting "dirt" "1" implies "minlight_dirt" "1"
-    // (and sunlight_dir/sunlight2_dirt as well), unless those variables were
+    // (and sunlight_dir/sunlight2_dirt as well), unless those variables were
     // set by the user to "0".
     //
     // We can't just default "minlight_dirt" to "1" because that would enable
@@ -166,9 +164,7 @@ static void PrintOptionsSummary(void)
 {
     LogPrint("--- OptionsSummary ---\n");
 
-    settingsdict_t sd = cfg_static.settings();
-
-    for (lockable_setting_t *setting : sd.allSettings()) {
+    for (auto setting : cfg_static.settings) {
         if (setting->isChanged()) {
             LogPrint("    \"{}\" was set to \"{}\" from {}\n", setting->primaryName(), setting->stringValue(),
                 setting->sourceString());
@@ -363,7 +359,7 @@ static void FindModelInfo(const mbsp_t *bsp, const char *lmscaleoverride)
             FError("Couldn't find entity for model {}.\n", modelname);
 
         // apply settings
-        info->settings().setSettings(*entdict, false);
+        info->settings.setSettings(*entdict, false);
 
         /* Check if this model will cast shadows (shadow => shadowself) */
         if (info->switchableshadow.boolValue()) {
@@ -808,27 +804,15 @@ static void PrintUsage()
 
     printf("\n");
     printf("Overridable worldspawn keys:\n");
-    settingsdict_t dict = cfg_static.settings();
-    for (const auto &s : dict.allSettings()) {
+
+    for (auto setting : cfg_static.settings) {
         printf("  ");
-        for (int i = 0; i < s->names().size(); i++) {
-            const auto &name = s->names().at(i);
+        for (int i = 0; i < setting->names().size(); i++) {
+            const auto &name = setting->names().at(i);
 
-            fmt::print("-{} ", name);
+            fmt::print("-{} {} ", name, setting->format());
 
-            if (dynamic_cast<lockable_vec_t *>(s)) {
-                printf("[n] ");
-            } else if (dynamic_cast<lockable_bool_t *>(s)) {
-                printf("[0,1] ");
-            } else if (dynamic_cast<lockable_vec3_t *>(s)) {
-                printf("[n n n] ");
-            } else if (dynamic_cast<lockable_string_t *>(s)) {
-                printf("\"str\" ");
-            } else {
-                Q_assert_unreachable();
-            }
-
-            if ((i + 1) < s->names().size()) {
+            if ((i + 1) < setting->names().size()) {
                 printf("| ");
             }
         }
@@ -1169,12 +1153,13 @@ int light_main(int argc, const char **argv)
         } else if (argv[i][0] == '-') {
             // hand over to the settings system
             std::string settingname{&argv[i][1]};
-            lockable_setting_t *setting = FindSetting(settingname);
+            settings::lockable_base *setting = FindSetting(settingname);
+
             if (setting == nullptr) {
                 Error("Unknown option \"-{}\"", settingname);
                 PrintUsage();
             }
-
+            /*
             if (lockable_bool_t *boolsetting = dynamic_cast<lockable_bool_t *>(setting)) {
                 vec_t v;
                 if (ParseVecOptional(&v, &i, argc, argv)) {
@@ -1191,6 +1176,7 @@ int light_main(int argc, const char **argv)
             } else {
                 Error("Internal error");
             }
+            */
         } else {
             break;
         }
@@ -1258,8 +1244,7 @@ int light_main(int argc, const char **argv)
 
     // mxd. Use 1.0 rangescale as a default to better match with qrad3/arghrad
     if ((bspdata.loadversion->game->id == GAME_QUAKE_II) && !cfg.rangescale.isChanged()) {
-        const auto rs = new lockable_vec_t(cfg.rangescale.primaryName(), 1.0f, 0.0f, 100.0f);
-        cfg.rangescale = *rs; // Gross hacks to avoid displaying this in OptionsSummary...
+        cfg.rangescale = std::move(settings::lockable_scalar(cfg.rangescale.primaryName(), 1.0f, 0.0f, 100.0f)); // Gross hacks to avoid displaying this in OptionsSummary...
     }
 
     img::init_palette(bspdata.loadversion->game);

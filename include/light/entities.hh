@@ -68,52 +68,47 @@ public:
 
     aabb3d bounds;
 
+    settings::lockable_scalar light{"light", DEFAULTLIGHTLEVEL};
+    settings::lockable_scalar atten{"wait", 1.0, 0.0, std::numeric_limits<vec_t>::infinity()};
+    settings::lockable_scalar formula{"delay", 0.0};
+    settings::lockable_scalar spotangle{"angle", 40.0};
+    settings::lockable_scalar spotangle2{"softangle", 0.0};
+    settings::lockable_scalar style{"style", 0.0};
+    settings::lockable_scalar anglescale{settings::strings{"anglesense", "anglescale"}, -1.0}; // fallback to worldspawn
+    settings::lockable_scalar dirtscale{"dirtscale", 0.0};
+    settings::lockable_scalar dirtgain{"dirtgain", 0};
+    settings::lockable_scalar dirt{"dirt", 0};
+    settings::lockable_scalar deviance{"deviance", 0};
+    settings::lockable_scalar samples{"samples", 16};
+    settings::lockable_scalar projfov{"project_fov", 90};
+    settings::lockable_scalar bouncescale{"bouncescale", 1.0};
+    settings::lockable_scalar dirt_off_radius{"dirt_off_radius", 0.0};
+    settings::lockable_scalar dirt_on_radius{"dirt_on_radius", 0.0};
+    settings::lockable_scalar sun{"sun", 0}; // mxd
+    settings::lockable_bool sunlight2{"sunlight2", 0};
+    settings::lockable_bool sunlight3{"sunlight3", 0};
+    settings::lockable_scalar falloff{"falloff", 0.0}; // mxd
+    settings::lockable_bool bleed{"bleed", false};
+    settings::lockable_vec3 origin{"origin", 0, 0, 0};
+    settings::lockable_color color{"color", 255.0, 255.0, 255.0};
+    settings::lockable_vec3 mangle{"mangle", 0, 0, 0}; // not transformed to vec
+    settings::lockable_vec3 projangle{"project_mangle", 20, 0, 0}; // not transformed to vec
+    settings::lockable_string project_texture{"project_texture", ""};
+    settings::lockable_string suntexture{"suntexture", ""};
+    settings::lockable_bool nostaticlight{"nostaticlight", false};
+
+    settings::dict settings {
+        &light, &atten, &formula, &spotangle, &spotangle2, &style, &bleed, &anglescale, &dirtscale, &dirtgain,
+        &dirt, &deviance, &samples, &projfov, &bouncescale, &dirt_off_radius, &dirt_on_radius,
+        &sun, // mxd
+        &sunlight2, &sunlight3,
+        &falloff, // mxd
+        &origin, &color, &mangle, &projangle, &project_texture, &suntexture, &nostaticlight
+    };
+
     const char *classname() const;
 
-public:
-    lockable_vec_t light{"light", DEFAULTLIGHTLEVEL};
-    lockable_vec_t atten{"wait", 1.0, 0.0, std::numeric_limits<vec_t>::infinity()};
-    lockable_vec_t formula{"delay", 0.0};
-    lockable_vec_t spotangle{"angle", 40.0};
-    lockable_vec_t spotangle2{"softangle", 0.0};
-    lockable_vec_t style{"style", 0.0};
-    lockable_vec_t anglescale{strings{"anglesense", "anglescale"}, -1.0}; // fallback to worldspawn
-    lockable_vec_t dirtscale{"dirtscale", 0.0};
-    lockable_vec_t dirtgain{"dirtgain", 0};
-    lockable_vec_t dirt{"dirt", 0};
-    lockable_vec_t deviance{"deviance", 0};
-    lockable_vec_t samples{"samples", 16};
-    lockable_vec_t projfov{"project_fov", 90};
-    lockable_vec_t bouncescale{"bouncescale", 1.0};
-    lockable_vec_t dirt_off_radius{"dirt_off_radius", 0.0};
-    lockable_vec_t dirt_on_radius{"dirt_on_radius", 0.0};
-    lockable_vec_t sun{"sun", 0}; // mxd
-    lockable_bool_t sunlight2{"sunlight2", 0};
-    lockable_bool_t sunlight3{"sunlight3", 0};
-    lockable_vec_t falloff{"falloff", 0.0}; // mxd
-    lockable_bool_t bleed{"bleed", false};
-    lockable_vec3_t origin{"origin", 0, 0, 0};
-    lockable_vec3_t color{"color", 255.0, 255.0, 255.0, vec3_transformer_t::NORMALIZE_COLOR_TO_255};
-    lockable_vec3_t mangle{"mangle", 0, 0, 0}; // not transformed to vec
-    lockable_vec3_t projangle{"project_mangle", 20, 0, 0}; // not transformed to vec
-    lockable_string_t project_texture{"project_texture", ""};
-    lockable_string_t suntexture{"suntexture", ""};
-    lockable_bool_t nostaticlight{"nostaticlight", false};
-
     light_formula_t getFormula() const { return static_cast<light_formula_t>(formula.intValue()); }
-
-public:
-    using strings = std::vector<std::string>;
-
-    settingsdict_t settings()
-    {
-        return {{&light, &atten, &formula, &spotangle, &spotangle2, &style, &bleed, &anglescale, &dirtscale, &dirtgain,
-            &dirt, &deviance, &samples, &projfov, &bouncescale, &dirt_off_radius, &dirt_on_radius,
-            &sun, // mxd
-            &sunlight2, &sunlight3,
-            &falloff, // mxd
-            &origin, &color, &mangle, &projangle, &project_texture, &suntexture, &nostaticlight}};
-    }
 
     void initAABB() { bounds = origin.vec3Value(); }
 

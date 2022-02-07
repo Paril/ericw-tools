@@ -660,16 +660,10 @@ static void LoadPortals(const std::filesystem::path &name, mbsp_t *bsp)
     portal_t *p;
     leaf_t *l;
     char magic[80];
-    qfile_t f{nullptr, nullptr};
     int numpoints;
     int leafnums[2];
     qplane3d plane;
-
-    if (name == "-")
-        f = {stdin, nullptr};
-    else {
-        f = SafeOpenRead(name, true);
-    }
+    qfile_t f = SafeOpenRead(name, true);
 
     /*
      * Parse the portal file header
@@ -933,7 +927,6 @@ int main(int argc, char **argv)
     mbsp_t &bsp = std::get<mbsp_t>(bspdata.bsp);
 
     portalfile = path_base.replace_extension("prt");
-
     LoadPortals(portalfile, &bsp);
 
     statefile = path_base.replace_extension("vis");

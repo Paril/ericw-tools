@@ -619,6 +619,46 @@ template<typename T>
     
     return normal;
 }
+
+template<typename T>
+inline qvec<T, 3> vec_from_mangle(const qvec<T, 3> &m)
+{
+    const qvec<T, 3> mRadians = m * static_cast<T>(Q_PI / 180.0);
+    const qmat3x3d rotations = RotateAboutZ(mRadians[0]) * RotateAboutY(-mRadians[1]);
+    return { rotations * qvec3d(1, 0, 0) };
+}
+
+template<typename T>
+inline qvec<T, 3> mangle_from_vec(const qvec<T, 3> &v)
+{
+    static constexpr qvec<T, 3> up(0, 0, 1);
+    static constexpr qvec<T, 3> east(1, 0, 0);
+    static constexpr qvec<T, 3> north(0, 1, 0);
+
+    // get rotation about Z axis
+    T x = qv::dot(east, v);
+    T y = qv::dot(north, v);
+    T theta = atan2(y, x);
+
+    // get angle away from Z axis
+    T cosangleFromUp = qv::dot(up, v);
+    cosangleFromUp = ::min(::max(static_cast<T>(-1.0), cosangleFromUp), static_cast<T>(1.0));
+    T radiansFromUp = acosf(cosangleFromUp);
+
+    return qvec<T, 3>{theta, -(radiansFromUp - Q_PI / 2.0), 0} * static_cast<T>(180.0 / Q_PI);
+}
+
+/* detect colors with components in 0-1 and scale them to 0-255 */
+template<typename T>
+constexpr qvec<T, 3> normalize_color_format(const qvec<T, 3> &color)
+{
+    if (color[0] >= 0 && color[0] <= 1 && color[1] >= 0 && color[1] <= 1 && color[2] >= 0 && color[2] <= 1) {
+        return color * 255;
+    }
+
+    return color;
+}
+
 }; // namespace qv
 
 using qvec2f = qvec<float, 2>;

@@ -22,6 +22,8 @@
 #pragma once
 
 #include <utility>
+#include <vector>
+#include <string_view>
 
 enum : int32_t
 {
@@ -40,12 +42,22 @@ inline auto untie(const std::tuple<T...> &tuple)
     return std::tuple<typename std::remove_reference<T>::type...>(tuple);
 }
 
-struct parser_t
+struct parser_base_t
+{
+    std::string token;
+    bool was_quoted = false; // whether the current token was from a quoted string or not
+
+    virtual bool parse_token(parseflags flags = PARSE_NORMAL) = 0;
+
+    virtual bool at_end() const = 0;
+};
+
+// a parser that works on a single, contiguous string
+struct parser_t : parser_base_t
 {
     const char *pos;
     const char *end;
     uint32_t linenum = 1;
-    std::string token;
 
     // base constructor; accept raw start & length
     parser_t(const void *start, size_t length) : pos(reinterpret_cast<const char *>(start)), end(reinterpret_cast<const char *>(start) + length) { }
@@ -57,9 +69,49 @@ struct parser_t
     // pull from C string; made explicit because this is error-prone
     explicit parser_t(const char *str) : parser_t(str, strlen(str)) { }
 
-    bool parse_token(parseflags flags = PARSE_NORMAL);
+    bool parse_token(parseflags flags = PARSE_NORMAL) override;
 
     auto state() { return std::tie(pos, linenum); }
 
-    bool at_end() const { return pos >= end; };
+    bool at_end() const override { return pos >= end; }
+};
+
+// a parser that works on a list of tokens
+struct token_parser_t : parser_base_t
+{
+    std::vector<std::string_view> tokens;
+    size_t cur = 0;
+
+    token_parser_t(int argc, const char **args) :
+        tokens(args, args + argc)
+    {
+    }
+
+    auto state() { return std::tie(cur); }
+
+    inline bool parse_token(parseflags flags = PARSE_NORMAL) override
+    {
+        /* for peek, we'll do a backup/restore. */
+        if (flags & PARSE_PEEK) {
+            auto restore = untie(state());
+            bool result = parse_token(flags & ~PARSE_PEEK);
+            state() = restore;
+            return result;
+        }
+
+        token.clear();
+        was_quoted = false;
+
+        if (at_end()) {
+            return false;
+        }
+
+        token = tokens[cur++];
+
+        was_quoted = std::any_of(token.begin(), token.end(), isspace);
+
+        return true;
+    }
+
+    bool at_end() const override { return cur >= tokens.size(); }
 };

@@ -952,10 +952,10 @@ void LoadEntities(const globalconfig_t &cfg, const mbsp_t *bsp)
             entity.epairs = &entdict;
 
             // populate settings
-            entity.settings().setSettings(*entity.epairs, false);
+            entity.settings.setSettings(*entity.epairs, false);
 
             if (entity.mangle.isChanged()) {
-                entity.spotvec = vec_from_mangle(entity.mangle.vec3Value());
+                entity.spotvec = qv::vec_from_mangle(entity.mangle.vec3Value());
                 entity.spotlight = true;
 
                 if (!entity.projangle.isChanged()) {
@@ -1435,7 +1435,7 @@ static void MakeSurfaceLights(const mbsp_t *bsp)
     for (entdict_t &l : radlights) {
         light_t &entity = surfacelight_templates.emplace_back();
         entity.epairs = &l;
-        entity.settings().setSettings(*entity.epairs, false);
+        entity.settings.setSettings(*entity.epairs, false);
     }
 
     for (light_t &entity : all_lights) {
