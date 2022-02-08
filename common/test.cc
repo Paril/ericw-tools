@@ -260,6 +260,18 @@ TEST(settings, remainder)
     ASSERT_EQ(remainder[1], "remainder two");
 }
 
+// test double-hyphens
+TEST(settings, doubleHyphen)
+{
+    settings::lockable_bool boolSetting("locked", false);
+    settings::lockable_string stringSetting("name", "");
+    settings::dict settings{&boolSetting, &stringSetting};
+    const char *arguments[] = {"qbsp.exe", "--locked", "--name", "my name!"};
+    settings.parse(token_parser_t{std::size(arguments) - 1, arguments + 1});
+    ASSERT_EQ(boolSetting.boolValue(), true);
+    ASSERT_EQ(stringSetting.stringValue(), "my name!");
+}
+
 int main(int argc, char **argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

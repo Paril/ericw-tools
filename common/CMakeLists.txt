@@ -37,4 +37,8 @@ set(COMMON_TEST_SOURCE
 add_executable(testcommon EXCLUDE_FROM_ALL ${COMMON_TEST_SOURCE})
 add_test(testcommon testcommon)
 
+# HACK: copy .dll dependencies
+add_custom_command(TARGET testcommon POST_BUILD
+                   COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:TBB::tbb>" "$<TARGET_FILE_DIR:testcommon>")
+
 target_link_libraries (testcommon common ${CMAKE_THREAD_LIBS_INIT} TBB::tbb gtest fmt::fmt)
