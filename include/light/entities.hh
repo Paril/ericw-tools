@@ -69,25 +69,25 @@ public:
     aabb3d bounds;
 
     settings::lockable_scalar light{"light", DEFAULTLIGHTLEVEL};
-    settings::lockable_scalar atten{"wait", 1.0, 0.0, std::numeric_limits<vec_t>::infinity()};
-    settings::lockable_scalar formula{"delay", 0.0};
+    settings::lockable_scalar atten{"wait", 1.0, 0.0, std::numeric_limits<vec_t>::max()};
+    settings::lockable_numeric<light_formula_t> formula{"delay", LF_LINEAR, LF_LINEAR, LF_INVERSE2A};
     settings::lockable_scalar spotangle{"angle", 40.0};
     settings::lockable_scalar spotangle2{"softangle", 0.0};
-    settings::lockable_scalar style{"style", 0.0};
+    settings::lockable_numeric<int32_t> style{"style", 0.0, 0, 254};
     settings::lockable_scalar anglescale{settings::strings{"anglesense", "anglescale"}, -1.0}; // fallback to worldspawn
     settings::lockable_scalar dirtscale{"dirtscale", 0.0};
     settings::lockable_scalar dirtgain{"dirtgain", 0};
     settings::lockable_scalar dirt{"dirt", 0};
     settings::lockable_scalar deviance{"deviance", 0};
-    settings::lockable_scalar samples{"samples", 16};
+    settings::lockable_int32 samples{"samples", 16, 0, std::numeric_limits<int32_t>::max() };
     settings::lockable_scalar projfov{"project_fov", 90};
     settings::lockable_scalar bouncescale{"bouncescale", 1.0};
     settings::lockable_scalar dirt_off_radius{"dirt_off_radius", 0.0};
     settings::lockable_scalar dirt_on_radius{"dirt_on_radius", 0.0};
-    settings::lockable_scalar sun{"sun", 0}; // mxd
+    settings::lockable_bool sun{"sun", false}; // mxd
     settings::lockable_bool sunlight2{"sunlight2", 0};
     settings::lockable_bool sunlight3{"sunlight3", 0};
-    settings::lockable_scalar falloff{"falloff", 0.0}; // mxd
+    settings::lockable_scalar falloff{"falloff", 0.0, 0.0, std::numeric_limits<vec_t>::max()}; // mxd
     settings::lockable_bool bleed{"bleed", false};
     settings::lockable_vec3 origin{"origin", 0, 0, 0};
     settings::lockable_color color{"color", 255.0, 255.0, 255.0};
@@ -108,7 +108,7 @@ public:
 
     const char *classname() const;
 
-    light_formula_t getFormula() const { return static_cast<light_formula_t>(formula.intValue()); }
+    const light_formula_t &getFormula() const { return formula.numberValue(); }
 
     void initAABB() { bounds = origin.vec3Value(); }
 

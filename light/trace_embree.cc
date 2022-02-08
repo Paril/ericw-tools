@@ -75,7 +75,7 @@ static float Face_Alpha(const modelinfo_t *modelinfo, const mface_t *face)
     }
 
     // next check modelinfo alpha (defaults to 1.0)
-    return modelinfo->alpha.floatValue();
+    return modelinfo->alpha.numberValue();
 }
 
 sceneinfo CreateGeometry(
@@ -333,7 +333,7 @@ static void Embree_FilterFuncN(const struct RTCFilterFunctionNArguments *args)
             // we hit a dynamic shadow caster. reject the hit, but store the
             // info about what we hit.
 
-            const int style = hit_modelinfo->switchshadstyle.intValue();
+            const int style = hit_modelinfo->switchshadstyle.numberValue();
 
             AddDynamicOccluderToRay(context, rayIndex, style);
 

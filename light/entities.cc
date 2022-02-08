@@ -99,7 +99,7 @@ static int LightStyleForTargetname(const globalconfig_t &cfg, const std::string 
     }
 
     // generate a new style number and return it
-    const int newStylenum = cfg.compilerstyle_start.intValue() + lightstyleForTargetname.size();
+    const int newStylenum = cfg.compilerstyle_start.numberValue() + lightstyleForTargetname.size();
 
     // check if full
     if (newStylenum >= MAX_SWITCHABLE_STYLES) {
@@ -280,18 +280,18 @@ static void SetupSpotlights(const globalconfig_t &cfg)
             entity.spotlight = true;
         }
         if (entity.spotlight) {
-            const vec_t angle = (entity.spotangle.floatValue() > 0) ? entity.spotangle.floatValue() : 40;
+            const vec_t angle = (entity.spotangle.numberValue() > 0) ? entity.spotangle.numberValue() : 40;
             entity.spotfalloff = -cos(angle / 2 * Q_PI / 180);
 
-            vec_t angle2 = entity.spotangle2.floatValue();
+            vec_t angle2 = entity.spotangle2.numberValue();
             if (angle2 <= 0 || angle2 > angle)
                 angle2 = angle;
             entity.spotfalloff2 = -cos(angle2 / 2 * Q_PI / 180);
 
             // mxd. Apply autofalloff?
-            if (targetdist > 0.0f && entity.falloff.floatValue() == 0 && cfg.spotlightautofalloff.boolValue()) {
+            if (targetdist > 0.0f && entity.falloff.numberValue() == 0 && cfg.spotlightautofalloff.boolValue()) {
                 const vec_t coneradius = targetdist * tan(angle / 2 * Q_PI / 180);
-                entity.falloff.setFloatValue(targetdist + coneradius);
+                entity.falloff.setNumberValue(targetdist + coneradius);
             }
         }
     }
@@ -299,56 +299,38 @@ static void SetupSpotlights(const globalconfig_t &cfg)
 
 static void CheckEntityFields(const globalconfig_t &cfg, light_t *entity)
 {
-    if (entity->light.floatValue() == 0.0f)
-        entity->light.setFloatValue(DEFAULTLIGHTLEVEL);
+    if (entity->light.numberValue() == 0.0f)
+        entity->light.setNumberValue(DEFAULTLIGHTLEVEL);
 
-    if (entity->atten.floatValue() <= 0.0)
-        entity->atten.setFloatValue(1.0);
-    if (entity->anglescale.floatValue() < 0 || entity->anglescale.floatValue() > 1.0)
-        entity->anglescale.setFloatValue(cfg.global_anglescale.floatValue());
-
-    // mxd. No negative falloffs pls.
-    if (entity->falloff.floatValue() < 0.0f)
-        entity->falloff.setFloatValue(0.0f);
+    if (entity->atten.numberValue() <= 0.0)
+        entity->atten.setNumberValue(1.0);
+    if (entity->anglescale.numberValue() < 0 || entity->anglescale.numberValue() > 1.0)
+        entity->anglescale.setNumberValue(cfg.global_anglescale.numberValue());
 
     // mxd. Warn about unsupported _falloff / delay combos...
-    if (entity->falloff.floatValue() > 0.0f && entity->getFormula() != LF_LINEAR) {
+    if (entity->falloff.numberValue() > 0.0f && entity->getFormula() != LF_LINEAR) {
         LogPrint("WARNING: _falloff is currently only supported on linear (delay 0) lights\n"
                  "   {} at [{}]\n",
             entity->classname(), entity->origin.vec3Value());
-        entity->falloff.setFloatValue(0.0f);
-    }
-
-    if (entity->getFormula() < LF_LINEAR || entity->getFormula() >= LF_COUNT) {
-        static bool warned_once = true;
-        if (!warned_once) {
-            warned_once = true;
-            LogPrint("WARNING: unknown formula number ({}) in delay field\n"
-                     "   {} at [{}]\n"
-                     "   (further formula warnings will be supressed)\n",
-                entity->getFormula(), entity->classname(), entity->origin.vec3Value());
-        }
-        entity->formula.setFloatValue(LF_LINEAR);
+        entity->falloff.setNumberValue(0.0f);
     }
 
     /* set up deviance and samples defaults */
-    if (entity->deviance.floatValue() > 0 && entity->samples.intValue() == 0) {
-        entity->samples.setFloatValue(16);
+    if (entity->deviance.numberValue() > 0 && entity->samples.numberValue() == 0) {
+        entity->samples.setNumberValue(16);
     }
-    if (entity->deviance.floatValue() <= 0.0f || entity->samples.intValue() <= 1) {
-        entity->deviance.setFloatValue(0.0f);
-        entity->samples.setFloatValue(1);
+
+    if (entity->deviance.numberValue() <= 0.0f || entity->samples.numberValue() <= 1) {
+        entity->deviance.setNumberValue(0.0f);
+        entity->samples.setNumberValue(1);
     }
+
     /* For most formulas, we need to divide the light value by the number of
        samples (jittering) to keep the brightness approximately the same. */
     if (entity->getFormula() == LF_INVERSE || entity->getFormula() == LF_INVERSE2 ||
         entity->getFormula() == LF_INFINITE || (entity->getFormula() == LF_LOCALMIN && cfg.addminlight.boolValue()) ||
         entity->getFormula() == LF_INVERSE2A) {
-        entity->light.setFloatValue(entity->light.floatValue() / entity->samples.intValue());
-    }
-
-    if (entity->style.intValue() < 0 || entity->style.intValue() > 254) {
-        FError("Bad light style {} (must be 0-254)", entity->style.intValue());
+        entity->light.setNumberValue(entity->light.numberValue() / entity->samples.numberValue());
     }
 }
 
@@ -461,7 +443,7 @@ static void SetupSuns(const globalconfig_t &cfg)
 {
     for (light_t &entity : all_lights) {
         // mxd. Arghrad-style sun setup
-        if (entity.sun.intValue() == 1 && entity.light.intValue() > 0) {
+        if (entity.sun.boolValue() && entity.light.numberValue() > 0) {
             // Set sun vector
             qvec3d sunvec;
             if (entity.targetent) {
@@ -475,22 +457,22 @@ static void SetupSuns(const globalconfig_t &cfg)
             }
 
             // Add the sun
-            SetupSun(cfg, entity.light.floatValue(), entity.color.vec3Value(), sunvec, entity.anglescale.floatValue(),
-                entity.deviance.floatValue(), entity.dirt.intValue(), entity.style.intValue(),
+            SetupSun(cfg, entity.light.numberValue(), entity.color.vec3Value(), sunvec, entity.anglescale.numberValue(),
+                entity.deviance.numberValue(), entity.dirt.numberValue(), entity.style.numberValue(),
                 entity.suntexture.stringValue());
 
             // Disable the light itself...
-            entity.light.setFloatValue(0.0f);
+            entity.light.setNumberValue(0.0f);
         }
     }
 
-    SetupSun(cfg, cfg.sunlight.floatValue(), cfg.sunlight_color.vec3Value(), cfg.sunvec.vec3Value(),
-        cfg.global_anglescale.floatValue(), cfg.sun_deviance.floatValue(), cfg.sunlight_dirt.intValue(), 0, "");
+    SetupSun(cfg, cfg.sunlight.numberValue(), cfg.sunlight_color.vec3Value(), cfg.sunvec.vec3Value(),
+        cfg.global_anglescale.numberValue(), cfg.sun_deviance.numberValue(), cfg.sunlight_dirt.numberValue(), 0, "");
 
-    if (cfg.sun2.floatValue() != 0) {
+    if (cfg.sun2.numberValue() != 0) {
         LogPrint("creating sun2\n");
-        SetupSun(cfg, cfg.sun2.floatValue(), cfg.sun2_color.vec3Value(), cfg.sun2vec.vec3Value(),
-            cfg.global_anglescale.floatValue(), cfg.sun_deviance.floatValue(), cfg.sunlight_dirt.intValue(), 0, "");
+        SetupSun(cfg, cfg.sun2.numberValue(), cfg.sun2_color.vec3Value(), cfg.sun2vec.vec3Value(),
+            cfg.global_anglescale.numberValue(), cfg.sun_deviance.numberValue(), cfg.sunlight_dirt.numberValue(), 0, "");
     }
 }
 
@@ -586,27 +568,27 @@ static void SetupSkyDome(const globalconfig_t &cfg, vec_t upperLight, const qvec
 static void SetupSkyDomes(const globalconfig_t &cfg)
 {
     // worldspawn "legacy" skydomes
-    SetupSkyDome(cfg, cfg.sunlight2.floatValue(), cfg.sunlight2_color.vec3Value(), cfg.sunlight2_dirt.intValue(),
-        cfg.global_anglescale.floatValue(), 0, "", cfg.sunlight3.floatValue(), cfg.sunlight3_color.vec3Value(),
-        cfg.sunlight2_dirt.intValue(), cfg.global_anglescale.floatValue(), 0, "");
+    SetupSkyDome(cfg, cfg.sunlight2.numberValue(), cfg.sunlight2_color.vec3Value(), cfg.sunlight2_dirt.numberValue(),
+        cfg.global_anglescale.numberValue(), 0, "", cfg.sunlight3.numberValue(), cfg.sunlight3_color.vec3Value(),
+        cfg.sunlight2_dirt.numberValue(), cfg.global_anglescale.numberValue(), 0, "");
 
     // new per-entity sunlight2/3 skydomes
     for (light_t &entity : all_lights) {
-        if ((entity.sunlight2.boolValue() || entity.sunlight3.boolValue()) && entity.light.intValue() > 0) {
+        if ((entity.sunlight2.boolValue() || entity.sunlight3.boolValue()) && entity.light.numberValue() > 0) {
             if (entity.sunlight2.boolValue()) {
                 // Add the upper dome, like sunlight2 (pointing down)
-                SetupSkyDome(cfg, entity.light.floatValue(), entity.color.vec3Value(), entity.dirt.intValue(),
-                    entity.anglescale.floatValue(), entity.style.intValue(), entity.suntexture.stringValue(), 0,
+                SetupSkyDome(cfg, entity.light.numberValue(), entity.color.vec3Value(), entity.dirt.numberValue(),
+                    entity.anglescale.numberValue(), entity.style.numberValue(), entity.suntexture.stringValue(), 0,
                              {}, 0, 0, 0, "");
             } else {
                 // Add the lower dome, like sunlight3 (pointing up)
-                SetupSkyDome(cfg, 0, {}, 0, 0, 0, "", entity.light.floatValue(), entity.color.vec3Value(),
-                    entity.dirt.intValue(), entity.anglescale.floatValue(), entity.style.intValue(),
+                SetupSkyDome(cfg, 0, {}, 0, 0, 0, "", entity.light.numberValue(), entity.color.vec3Value(),
+                    entity.dirt.numberValue(), entity.anglescale.numberValue(), entity.style.numberValue(),
                     entity.suntexture.stringValue());
             }
 
             // Disable the light itself...
-            entity.light.setFloatValue(0.0f);
+            entity.light.setNumberValue(0.0f);
         }
     }
 }
@@ -634,15 +616,15 @@ static light_t DuplicateEntity(const light_t &src)
 static void JitterEntity(const light_t entity)
 {
     /* jitter the light */
-    for (int j = 1; j < entity.samples.intValue(); j++) {
+    for (int j = 1; j < entity.samples.numberValue(); j++) {
         /* create a light */
         light_t &light2 = all_lights.emplace_back(DuplicateEntity(entity));
         light2.generated = true; // don't write generated light to bsp
 
         /* jitter it */
-        qvec3d neworigin = {(entity.origin.vec3Value())[0] + (Random() * 2.0f - 1.0f) * entity.deviance.floatValue(),
-            (entity.origin.vec3Value())[1] + (Random() * 2.0f - 1.0f) * entity.deviance.floatValue(),
-            (entity.origin.vec3Value())[2] + (Random() * 2.0f - 1.0f) * entity.deviance.floatValue()};
+        qvec3d neworigin = {(entity.origin.vec3Value())[0] + (Random() * 2.0f - 1.0f) * entity.deviance.numberValue(),
+            (entity.origin.vec3Value())[1] + (Random() * 2.0f - 1.0f) * entity.deviance.numberValue(),
+            (entity.origin.vec3Value())[2] + (Random() * 2.0f - 1.0f) * entity.deviance.numberValue()};
         light2.origin.setVec3Value(neworigin);
     }
 }
@@ -986,13 +968,13 @@ void LoadEntities(const globalconfig_t &cfg, const mbsp_t *bsp)
             if (entity.projectedmip) {
                 if (entity.projectedmip->meta.width > entity.projectedmip->meta.height)
                     Matrix4x4_CM_MakeModelViewProj(entity.projangle.vec3Value(), entity.origin.vec3Value(),
-                        entity.projfov.floatValue(),
-                        CalcFov(entity.projfov.floatValue(), entity.projectedmip->meta.width, entity.projectedmip->meta.height),
+                        entity.projfov.numberValue(),
+                        CalcFov(entity.projfov.numberValue(), entity.projectedmip->meta.width, entity.projectedmip->meta.height),
                         entity.projectionmatrix);
                 else
                     Matrix4x4_CM_MakeModelViewProj(entity.projangle.vec3Value(), entity.origin.vec3Value(),
-                        CalcFov(entity.projfov.floatValue(), entity.projectedmip->meta.height, entity.projectedmip->meta.width),
-                        entity.projfov.floatValue(), entity.projectionmatrix);
+                        CalcFov(entity.projfov.numberValue(), entity.projectedmip->meta.height, entity.projectedmip->meta.width),
+                        entity.projfov.numberValue(), entity.projectionmatrix);
             }
 
             CheckEntityFields(cfg, &entity);
@@ -1030,7 +1012,7 @@ static qvec3d FixLightOnFace(const mbsp_t *bsp, const qvec3d &point)
 void FixLightsOnFaces(const mbsp_t *bsp)
 {
     for (light_t &entity : all_lights) {
-        if (entity.light.floatValue() != 0) {
+        if (entity.light.numberValue() != 0) {
             entity.origin.setVec3Value(FixLightOnFace(bsp, entity.origin.vec3Value()));
         }
     }
@@ -1208,7 +1190,7 @@ void WriteEntitiesToString(const globalconfig_t &cfg, mbsp_t *bsp)
 
     /* FIXME - why are we printing this here? */
     LogPrint("{} switchable light styles ({} max)\n", lightstyleForTargetname.size(),
-        MAX_SWITCHABLE_STYLES - cfg.compilerstyle_start.intValue());
+        MAX_SWITCHABLE_STYLES - cfg.compilerstyle_start.numberValue());
 }
 
 /*
@@ -1444,7 +1426,7 @@ static void MakeSurfaceLights(const mbsp_t *bsp)
             surfacelight_templates.push_back(entity); // makes a copy
 
             // Hack: clear templates light value to 0 so they don't cast light
-            entity.light.setFloatValue(0);
+            entity.light.setNumberValue(0);
 
             LogPrint("Creating surface lights for texture \"{}\" from template at ({})\n", tex,
                 ValueForKey(&entity, "origin"));

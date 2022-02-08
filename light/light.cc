@@ -152,10 +152,10 @@ void FixupGlobalSettings()
             cfg_static.minlightDirt.setBoolValue(true);
         }
         if (!cfg_static.sunlight_dirt.isChanged()) {
-            cfg_static.sunlight_dirt.setFloatValue(1);
+            cfg_static.sunlight_dirt.setNumberValue(1);
         }
         if (!cfg_static.sunlight2_dirt.isChanged()) {
-            cfg_static.sunlight2_dirt.setFloatValue(1);
+            cfg_static.sunlight2_dirt.setNumberValue(1);
         }
     }
 }
@@ -342,7 +342,7 @@ static void FindModelInfo(const mbsp_t *bsp, const char *lmscaleoverride)
 
     /* The world always casts shadows */
     modelinfo_t *world = new modelinfo_t{bsp, &bsp->dmodels[0], lightmapscale};
-    world->shadow.setFloatValue(1.0f); /* world always casts shadows */
+    world->shadow.setNumberValue(1.0f); /* world always casts shadows */
     world->phong_angle = cfg_static.phongangle;
     modelinfo.push_back(world);
     tracelist.push_back(world);
@@ -363,7 +363,7 @@ static void FindModelInfo(const mbsp_t *bsp, const char *lmscaleoverride)
 
         /* Check if this model will cast shadows (shadow => shadowself) */
         if (info->switchableshadow.boolValue()) {
-            Q_assert(info->switchshadstyle.intValue() != 0);
+            Q_assert(info->switchshadstyle.numberValue() != 0);
             switchableshadowlist.push_back(info);
         } else if (info->shadow.boolValue()) {
             tracelist.push_back(info);
@@ -723,7 +723,7 @@ static void CheckLitNeeded(const globalconfig_t &cfg)
     }
 
     // check global settings
-    if (cfg.bouncecolorscale.floatValue() != 0 ||
+    if (cfg.bouncecolorscale.numberValue() != 0 ||
         !qv::epsilonEqual(cfg.minlight_color.vec3Value(), vec3_white, EQUAL_EPSILON) ||
         !qv::epsilonEqual(cfg.sunlight_color.vec3Value(), vec3_white, EQUAL_EPSILON) ||
         !qv::epsilonEqual(cfg.sun2_color.vec3Value(), vec3_white, EQUAL_EPSILON) ||

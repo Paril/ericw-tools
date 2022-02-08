@@ -27,6 +27,7 @@
 #include <common/aabb.hh>
 #include <common/fs.hh>
 #include <common/threads.hh>
+#include <common/settings.hh>
 #include <qbsp/qbsp.hh>
 #include <qbsp/wad.hh>
 #include <fmt/chrono.h>
@@ -36,6 +37,23 @@
 constexpr const char *IntroString = "---- qbsp / ericw-tools " stringify(ERICWTOOLS_VERSION) " ----\n";
 
 // command line flags
+namespace settings
+{
+    lockable_bool hexen2 { "hexen2", false, "Game/BSP Target", "target Hexen II's BSP format" };
+    lockable_bool hlbsp { "hlbsp", false, "Game/BSP Target", "target Half Life's BSP format" };
+    lockable_bool q2bsp { "q2bsp", false, "Game/BSP Target", "target Quake II's BSP format" };
+    lockable_bool qbism { "qbism", false, "Game/BSP Target", "target Qbism's extended Quake II BSP format" };
+    lockable_bool bsp2 { "bsp2", false, "Game/BSP Target", "target Quake's extended BSP2 format" };
+    lockable_bool bsp2rmq { "2psb", false, "Game/BSP Target", "target Quake's extended 2PSB format (RMQ compatible)" };
+
+    inline void register_settings()
+    {
+        globalSettings.addSettings({
+            &hexen2, &hlbsp, &q2bsp, &qbism, &bsp2, &bsp2rmq
+        });
+    }
+};
+
 options_t options;
 
 bool node_t::opaque() const
@@ -1025,8 +1043,6 @@ PrintOptions
         "   -noskip         Doesn't remove faces with the 'skip' texture\n"
         "   -nodetail       Convert func_detail to structural\n"
         "   -onlyents       Only updates .MAP entities\n"
-        "   -verbose        Print out more .MAP information\n"
-        "   -noverbose      Print out almost no information at all\n"
         "   -splitspecial   Doesn't combine sky and water faces into one large face\n"
         "   -splitsky       Doesn't combine sky faces into one large face\n"
         "   -splitturb      Doesn't combine water faces into one large face\n"
@@ -1035,7 +1051,6 @@ PrintOptions
         "   -notex          Write only placeholder textures, to depend upon replacements, to keep file sizes down, or to skirt copyrights\n"
         "   -nooldaxis      Uses alternate texture alignment which was default in tyrutils-ericw v0.15.1 and older\n"
         "   -forcegoodtree  Force use of expensive processing for SolidBSP stage\n"
-        "   -nopercent      Prevents output of percent completion information\n"
         "   -wrbrushes      (bspx) Includes a list of brushes for brush-based collision\n"
         "   -wrbrushesonly  -wrbrushes with -noclip\n"
         "   -hexen2         Generate a BSP compatible with hexen2 engines\n"
@@ -1060,7 +1075,6 @@ PrintOptions
         "   -expand         Write hull 1 expanded brushes to expanded.map for debugging\n"
         "   -leaktest       Make compilation fail if the map leaks\n"
         "   -contenthack    Hack to fix leaks through solids. Causes missing faces in some cases so disabled by default.\n"
-        "   -threads n      Set the number of threads (1 to disable multithreading)\n"
         "   sourcefile      .MAP file to process\n"
         "   destfile        .BSP file to output\n");
 
@@ -1116,6 +1130,15 @@ ParseOptions
 */
 static void ParseOptions(char *szOptions)
 {
+    // side effects from common
+    if (log_mask & (1 << LOG_VERBOSE)) {
+        options.fAllverbose = true;
+    }
+
+    if ((log_mask & ((1 << LOG_PERCENT) | (1 << LOG_STAT) | (1 << LOG_PROGRESS))) == 0) {
+        options.fNoverbose = true;
+    }
+
     char *szTok, *szTok2;
     char *szEnd;
     int NameCount = 0;
@@ -1147,10 +1170,7 @@ static void ParseOptions(char *szOptions)
                 options.fNodetail = true;
             else if (!Q_strcasecmp(szTok, "onlyents"))
                 options.fOnlyents = true;
-            else if (!Q_strcasecmp(szTok, "verbose")) {
-                options.fAllverbose = true;
-                log_mask |= 1 << LOG_VERBOSE;
-            } else if (!Q_strcasecmp(szTok, "splitspecial"))
+            else if (!Q_strcasecmp(szTok, "splitspecial"))
                 options.fSplitspecial = true;
             else if (!Q_strcasecmp(szTok, "splitsky"))
                 options.fSplitsky = true;
@@ -1171,13 +1191,7 @@ static void ParseOptions(char *szOptions)
                 options.fOldaxis = false;
             else if (!Q_strcasecmp(szTok, "forcegoodtree"))
                 options.forceGoodTree = true;
-            else if (!Q_strcasecmp(szTok, "noverbose")) {
-                options.fNoverbose = true;
-                log_mask &= ~((1 << LOG_PERCENT) | (1 << LOG_STAT) | (1 << LOG_PROGRESS));
-            } else if (!Q_strcasecmp(szTok, "nopercent")) {
-                options.fNopercent = true;
-                log_mask &= ~(1 << LOG_PERCENT);
-            } else if (!Q_strcasecmp(szTok, "hexen2"))
+            else if (!Q_strcasecmp(szTok, "hexen2"))
                 hexen2 = true; // can be combined with -bsp2 or -2psb
             else if (!Q_strcasecmp(szTok, "q2bsp"))
                 options.target_version = &bspver_q2;
@@ -1296,13 +1310,6 @@ static void ParseOptions(char *szOptions)
                 options.fLeakTest = true;
             } else if (!Q_strcasecmp(szTok, "contenthack")) {
                 options.fContentHack = true;
-            } else if (!Q_strcasecmp(szTok, "threads")) {
-                szTok2 = GetTok(szTok + strlen(szTok) + 1, szEnd);
-                if (!szTok2)
-                    FError("Invalid argument to option {}", szTok);
-                options.threads = atoi(szTok2);
-            } else if (!Q_strcasecmp(szTok, "?") || !Q_strcasecmp(szTok, "help")) {
-                PrintOptions();
             } else {
                 FError("Unknown option '{}'", szTok);
             }
@@ -1332,6 +1339,12 @@ InitQBSP
 */
 static void InitQBSP(int argc, const char **argv)
 {
+    settings::globalSettings.programName = fs::path(argv[0]).stem().string();
+    settings::globalSettings.remainderName = "sourcefile.map [destfile.bsp]";
+    settings::register_settings();
+
+    settings::globalSettings.printHelp();
+
     if (auto file = fs::load("qbsp.ini")) {
         LogPrint("Loading options from qbsp.ini\n");
         ParseOptions(reinterpret_cast<char *>(file->data()));
@@ -1424,8 +1437,6 @@ int qbsp_main(int argc, const char **argv)
     LogPrint(IntroString);
 
     InitQBSP(argc, argv);
-
-    auto tbbOptions = ConfigureTBB(options.threads);
 
     // do it!
     auto start = I_FloatTime();

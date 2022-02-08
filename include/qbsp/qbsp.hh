@@ -41,6 +41,7 @@
 
 #include <common/bspfile.hh>
 #include <common/aabb.hh>
+#include <common/settings.hh>
 
 enum texcoord_style_t
 {
@@ -57,6 +58,16 @@ enum class conversion_t
     quake2,
     valve,
     bp
+};
+
+namespace settings
+{
+    extern lockable_bool hexen2;
+    extern lockable_bool hlbsp;
+    extern lockable_bool q2bsp;
+    extern lockable_bool qbism;
+    extern lockable_bool bsp2;
+    extern lockable_bool bsp2rmq;
 };
 
 class options_t
@@ -78,7 +89,6 @@ public:
     bool fTranssky = false;
     bool fOldaxis = true;
     bool fNoverbose = false;
-    bool fNopercent = false;
     bool forceGoodTree = false;
     bool fixRotateObjTexture = true;
     bool fbspx_brushes = false;
@@ -117,7 +127,6 @@ public:
     bool fLeakTest = false;
     bool fContentHack = false;
     vec_t worldExtent = 0.f;
-    int threads = 0; // 0 = let TBB auto select ideal number of threads
     bool includeSkip = false;
     bool fNoTJunc = false;
 };

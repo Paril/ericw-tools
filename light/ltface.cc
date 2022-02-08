@@ -550,7 +550,7 @@ bool Light_PointInAnySolid(const mbsp_t *bsp, const dmodelh2_t *self, const qvec
     for (const auto &modelinfo : tracelist) {
         if (Light_PointInSolid(bsp, modelinfo->model, point)) {
             // Only mark occluded if the bmodel is fully opaque
-            if (modelinfo->alpha.floatValue() == 1.0f)
+            if (modelinfo->alpha.numberValue() == 1.0f)
                 return true;
         }
     }
@@ -706,14 +706,14 @@ static bool Lightsurf_Init(
 
     // nodirt
     if (modelinfo->dirt.isChanged()) {
-        lightsurf->nodirt = (modelinfo->dirt.intValue() == -1);
+        lightsurf->nodirt = (modelinfo->dirt.numberValue() == -1);
     } else {
         lightsurf->nodirt = extended_flags.no_dirt;
     }
 
     // minlight
     if (modelinfo->minlight.isChanged()) {
-        lightsurf->minlight = modelinfo->minlight.floatValue();
+        lightsurf->minlight = modelinfo->minlight.numberValue();
     } else {
         lightsurf->minlight = extended_flags.minlight;
     }
@@ -736,7 +736,7 @@ static bool Lightsurf_Init(
     }
 
     /* handle glass alpha */
-    if (modelinfo->alpha.floatValue() < 1) {
+    if (modelinfo->alpha.numberValue() < 1) {
         /* skip culling of rays coming from the back side of the face */
         lightsurf->twosided = true;
     }
@@ -867,10 +867,10 @@ static void Lightmap_Save(
 // returns the light contribution at a given distance, without regard for angle
 vec_t GetLightValue(const globalconfig_t &cfg, const light_t *entity, vec_t dist)
 {
-    const float light = entity->light.floatValue();
+    const float light = entity->light.numberValue();
 
     // mxd. Apply falloff?
-    const float lightdistance = entity->falloff.floatValue();
+    const float lightdistance = entity->falloff.numberValue();
     if (lightdistance > 0.0f) {
         if (entity->getFormula() == LF_LINEAR) {
             // Light can affect surface?
@@ -884,7 +884,7 @@ vec_t GetLightValue(const globalconfig_t &cfg, const light_t *entity, vec_t dist
     if (entity->getFormula() == LF_INFINITE || entity->getFormula() == LF_LOCALMIN)
         return light;
 
-    vec_t value = cfg.scaledist.floatValue() * entity->atten.floatValue() * dist;
+    vec_t value = cfg.scaledist.numberValue() * entity->atten.numberValue() * dist;
 
     switch (entity->getFormula()) {
         case LF_INVERSE: return light / (value / LF_SCALE);
@@ -918,7 +918,7 @@ static float GetLightValueWithAngle(const globalconfig_t &cfg, const light_t *en
     }
 
     /* Apply anglescale */
-    angle = (1.0 - entity->anglescale.floatValue()) + (entity->anglescale.floatValue() * angle);
+    angle = (1.0 - entity->anglescale.numberValue()) + (entity->anglescale.numberValue() * angle);
 
     /* Check spotlight cone */
     float spotscale = 1;
@@ -1053,8 +1053,8 @@ float GetLightDist(const globalconfig_t &cfg, const light_t *entity, vec_t desir
     float fadedist;
     if (entity->getFormula() == LF_LINEAR) {
         /* Linear formula always has a falloff point */
-        fadedist = fabs(entity->light.floatValue()) - desiredLight;
-        fadedist = fadedist / entity->atten.floatValue() / cfg.scaledist.floatValue();
+        fadedist = fabs(entity->light.numberValue()) - desiredLight;
+        fadedist = fadedist / entity->atten.numberValue() / cfg.scaledist.numberValue();
         fadedist = max(0.0f, fadedist);
     } else {
         /* Calculate the distance at which brightness falls to desiredLight */
@@ -1062,16 +1062,16 @@ float GetLightDist(const globalconfig_t &cfg, const light_t *entity, vec_t desir
             case LF_INFINITE:
             case LF_LOCALMIN: fadedist = FLT_MAX; break;
             case LF_INVERSE:
-                fadedist = (LF_SCALE * fabs(entity->light.floatValue())) /
-                           (cfg.scaledist.floatValue() * entity->atten.floatValue() * desiredLight);
+                fadedist = (LF_SCALE * fabs(entity->light.numberValue())) /
+                           (cfg.scaledist.numberValue() * entity->atten.numberValue() * desiredLight);
                 break;
             case LF_INVERSE2:
             case LF_INVERSE2A:
                 fadedist =
-                    sqrt(fabs(entity->light.floatValue() * SQR(LF_SCALE) /
-                              (SQR(cfg.scaledist.floatValue()) * SQR(entity->atten.floatValue()) * desiredLight)));
+                    sqrt(fabs(entity->light.numberValue() * SQR(LF_SCALE) /
+                              (SQR(cfg.scaledist.numberValue()) * SQR(entity->atten.numberValue()) * desiredLight)));
                 if (entity->getFormula() == LF_INVERSE2A) {
-                    fadedist -= (LF_SCALE / (cfg.scaledist.floatValue() * entity->atten.floatValue()));
+                    fadedist -= (LF_SCALE / (cfg.scaledist.numberValue() * entity->atten.numberValue()));
                 }
                 fadedist = max(0.0f, fadedist);
                 break;
@@ -1109,8 +1109,8 @@ constexpr vec_t fraction(const vec_t &min, const vec_t &val, const vec_t &max)
 inline vec_t Dirt_GetScaleFactor(
     const globalconfig_t &cfg, vec_t occlusion, const light_t *entity, const vec_t entitydist, const lightsurf_t *surf)
 {
-    vec_t light_dirtgain = cfg.dirtGain.floatValue();
-    vec_t light_dirtscale = cfg.dirtScale.floatValue();
+    vec_t light_dirtgain = cfg.dirtGain.numberValue();
+    vec_t light_dirtscale = cfg.dirtScale.numberValue();
     bool usedirt;
 
     /* is dirt processing disabled entirely? */
@@ -1121,9 +1121,9 @@ inline vec_t Dirt_GetScaleFactor(
 
     /* should this light be affected by dirt? */
     if (entity) {
-        if (entity->dirt.intValue() == -1) {
+        if (entity->dirt.numberValue() == -1) {
             usedirt = false;
-        } else if (entity->dirt.intValue() == 1) {
+        } else if (entity->dirt.numberValue() == 1) {
             usedirt = true;
         } else {
             usedirt = cfg.globalDirt.boolValue();
@@ -1140,10 +1140,10 @@ inline vec_t Dirt_GetScaleFactor(
     /* override the global scale and gain values with the light-specific
        values, if present */
     if (entity) {
-        if (entity->dirtgain.floatValue())
-            light_dirtgain = entity->dirtgain.floatValue();
-        if (entity->dirtscale.floatValue())
-            light_dirtscale = entity->dirtscale.floatValue();
+        if (entity->dirtgain.numberValue())
+            light_dirtgain = entity->dirtgain.numberValue();
+        if (entity->dirtscale.numberValue())
+            light_dirtscale = entity->dirtscale.numberValue();
     }
 
     /* early out */
@@ -1171,8 +1171,8 @@ inline vec_t Dirt_GetScaleFactor(
 
         if (entity->dirt_on_radius.isChanged() && entity->dirt_off_radius.isChanged()) {
 
-            const float onRadius = entity->dirt_on_radius.floatValue();
-            const float offRadius = entity->dirt_off_radius.floatValue();
+            const float onRadius = entity->dirt_on_radius.numberValue();
+            const float offRadius = entity->dirt_off_radius.numberValue();
 
             if (entitydist < offRadius) {
                 outDirt = 0.0;
@@ -1251,7 +1251,7 @@ std::map<int, qvec3f> GetDirectLighting(
 
         // Write out the final color
         // color_out is expected to be in [0..255] range, vpl->color is in [0..1] range.
-        qvec3d color = (vpl.color * add) * cfg.surflightbouncescale.floatValue();
+        qvec3d color = (vpl.color * add) * cfg.surflightbouncescale.numberValue();
 
         // NOTE: Skip negative lights, which would make no sense to bounce!
         if (LightSample_Brightness(color) <= fadegate)
@@ -1273,14 +1273,14 @@ std::map<int, qvec3f> GetDirectLighting(
         }
 
         // Skip styled lights if "bouncestyled" setting is off.
-        if (entity.style.intValue() != 0 && !cfg.bouncestyled.boolValue()) {
+        if (entity.style.numberValue() != 0 && !cfg.bouncestyled.boolValue()) {
             continue;
         }
 
         GetLightContrib(
             cfg, &entity, normal, origin, false, color, surfpointToLightDir, normalcontrib, &surfpointToLightDist);
 
-        color *= entity.bouncescale.floatValue();
+        color *= entity.bouncescale.numberValue();
 
         // NOTE: Skip negative lights, which would make no sense to bounce!
         if (LightSample_Brightness(color) <= fadegate) {
@@ -1292,7 +1292,7 @@ std::map<int, qvec3f> GetDirectLighting(
             continue;
         }
 
-        int lightstyle = entity.style.intValue();
+        int lightstyle = entity.style.numberValue();
         if (lightstyle == 0) {
             // switchable shadow only blocks style 0 lights, otherwise switchable lights become always on when shadow is
             // hidden
@@ -1416,7 +1416,7 @@ static void LightFace_Entity(
     rs->tracePushedRaysOcclusion(modelinfo);
     total_light_rays += rs->numPushedRays();
 
-    int cached_style = entity->style.intValue();
+    int cached_style = entity->style.numberValue();
     lightmap_t *cached_lightmap = Lightmap_ForStyle(lightmaps, cached_style, lightsurf);
 
     const int N = rs->numPushedRays();
@@ -1440,7 +1440,7 @@ static void LightFace_Entity(
         //
         // If not, then we are guaranteed to detect the dynamic shadow caster in the ray filter
         // (if any), and handle it here.
-        int desired_style = entity->style.intValue();
+        int desired_style = entity->style.numberValue();
         if (desired_style == 0) {
             desired_style = rs->getPushedRayDynamicStyle(j);
         }
@@ -1627,7 +1627,7 @@ static void LightFace_Min(const mbsp_t *bsp, const mface_t *face, const qvec3d &
         raystream_occlusion_t *rs = lightsurf->occlusion_stream;
         rs->clearPushedRays();
 
-        lightmap = Lightmap_ForStyle(lightmaps, entity.style.intValue(), lightsurf);
+        lightmap = Lightmap_ForStyle(lightmaps, entity.style.numberValue(), lightsurf);
 
         hit = false;
         for (int i = 0; i < lightsurf->numpoints; i++) {
@@ -1636,7 +1636,7 @@ static void LightFace_Min(const mbsp_t *bsp, const mface_t *face, const qvec3d &
 
             const lightsample_t *sample = &lightmap->samples[i];
             const qvec3d &surfpoint = lightsurf->points[i];
-            if (cfg.addminlight.boolValue() || LightSample_Brightness(sample->color) < entity.light.floatValue()) {
+            if (cfg.addminlight.boolValue() || LightSample_Brightness(sample->color) < entity.light.numberValue()) {
                 qvec3d surfpointToLightDir;
                 const vec_t surfpointToLightDist = GetDir(surfpoint, entity.origin.vec3Value(), surfpointToLightDir);
 
@@ -1655,7 +1655,7 @@ static void LightFace_Min(const mbsp_t *bsp, const mface_t *face, const qvec3d &
             }
 
             int i = rs->getPushedRayPointIndex(j);
-            vec_t value = entity.light.floatValue();
+            vec_t value = entity.light.numberValue();
             lightsample_t *sample = &lightmap->samples[i];
 
             value *=
@@ -1671,7 +1671,7 @@ static void LightFace_Min(const mbsp_t *bsp, const mface_t *face, const qvec3d &
         }
 
         if (hit) {
-            Lightmap_Save(lightmaps, lightsurf, lightmap, entity.style.intValue());
+            Lightmap_Save(lightmaps, lightsurf, lightmap, entity.style.numberValue());
         }
     }
 }
@@ -1764,7 +1764,7 @@ inline qvec3f BounceLight_ColorAtDist(const globalconfig_t &cfg, float area, con
     }
 
     const float dist2 = (dist * dist);
-    const float scale = (1.0f / dist2) * cfg.bouncescale.floatValue();
+    const float scale = (1.0f / dist2) * cfg.bouncescale.numberValue();
 
     // get light contribution
     const qvec3f result = bounceLightColor * area * (255.0f * scale);
@@ -1777,7 +1777,7 @@ static qvec3f SurfaceLight_ColorAtDist(
 {
     // Exponential falloff
     const float d = max(dist, 16.0f); // Clamp away hotspots, also avoid division by 0...
-    const float scaledintensity = intensity * cfg.surflightscale.floatValue();
+    const float scaledintensity = intensity * cfg.surflightscale.numberValue();
     const float scale = (1.0f / (d * d));
 
     return color * scaledintensity * scale;
@@ -2291,17 +2291,9 @@ void SetupDirt(globalconfig_t &cfg)
     /* note it */
     LogPrint("--- SetupDirt ---\n");
 
-    /* clamp dirtAngle */
-    if (cfg.dirtAngle.floatValue() <= 1.0f) {
-        cfg.dirtAngle.setFloatValueLocked(1.0f); // FIXME: add clamping API
-    }
-    if (cfg.dirtAngle.floatValue() >= 90.0f) {
-        cfg.dirtAngle.setFloatValueLocked(90.0f);
-    }
-
     /* calculate angular steps */
     constexpr float angleStep = (float)DEG2RAD(360.0f / DIRT_NUM_ANGLE_STEPS);
-    const float elevationStep = (float)DEG2RAD(cfg.dirtAngle.floatValue() / DIRT_NUM_ELEVATION_STEPS);
+    const float elevationStep = (float)DEG2RAD(cfg.dirtAngle.numberValue() / DIRT_NUM_ELEVATION_STEPS);
 
     /* iterate angle */
     float angle = 0.0f;
@@ -2351,10 +2343,10 @@ inline qvec3d GetDirtVector(const globalconfig_t &cfg, int i)
 {
     Q_assert(i < numDirtVectors);
 
-    if (cfg.dirtMode.intValue() == 1) {
+    if (cfg.dirtMode.numberValue() == 1) {
         /* get random vector */
         float angle = Random() * DEG2RAD(360.0f);
-        float elevation = Random() * DEG2RAD(cfg.dirtAngle.floatValue());
+        float elevation = Random() * DEG2RAD(cfg.dirtAngle.numberValue());
         return { cos(angle) * sin(elevation), sin(angle) * sin(elevation), cos(elevation) };
     }
 
@@ -2383,7 +2375,7 @@ float DirtAtPoint(const globalconfig_t &cfg, raystream_intersection_t *rs, const
         qvec3d dirtvec = GetDirtVector(cfg, j);
         qvec3d dir = TransformToTangentSpace(normal, myUp, myRt, dirtvec);
 
-        rs->pushRay(j, point, dir, cfg.dirtDepth.floatValue());
+        rs->pushRay(j, point, dir, cfg.dirtDepth.numberValue());
     }
 
     Q_assert(rs->numPushedRays() == numDirtVectors);
@@ -2395,15 +2387,15 @@ float DirtAtPoint(const globalconfig_t &cfg, raystream_intersection_t *rs, const
     for (int j = 0; j < numDirtVectors; j++) {
         if (rs->getPushedRayHitType(j) == hittype_t::SOLID) {
             const vec_t dist = rs->getPushedRayHitDist(j);
-            occlusion += min(cfg.dirtDepth.floatValue(), dist);
+            occlusion += min(cfg.dirtDepth.numberValue(), dist);
         } else {
-            occlusion += cfg.dirtDepth.floatValue();
+            occlusion += cfg.dirtDepth.numberValue();
         }
     }
 
     // process the results.
     const vec_t avgHitdist = occlusion / numDirtVectors;
-    occlusion = 1 - (avgHitdist / cfg.dirtDepth.floatValue());
+    occlusion = 1 - (avgHitdist / cfg.dirtDepth.numberValue());
     return occlusion;
 }
 
@@ -2446,7 +2438,7 @@ static void LightFace_CalculateDirt(lightsurf_t *lightsurf)
             qvec3d dirtvec = GetDirtVector(cfg, j);
             qvec3d dir = TransformToTangentSpace(lightsurf->normals[i], myUps[i], myRts[i], dirtvec);
 
-            rs->pushRay(i, lightsurf->points[i], dir, cfg.dirtDepth.floatValue());
+            rs->pushRay(i, lightsurf->points[i], dir, cfg.dirtDepth.numberValue());
         }
 
         // trace the batch. need closest hit for dirt, so intersection.
@@ -2457,9 +2449,9 @@ static void LightFace_CalculateDirt(lightsurf_t *lightsurf)
             const int i = rs->getPushedRayPointIndex(k);
             if (rs->getPushedRayHitType(k) == hittype_t::SOLID) {
                 vec_t dist = rs->getPushedRayHitDist(k);
-                lightsurf->occlusion[i] += min(cfg.dirtDepth.floatValue(), dist);
+                lightsurf->occlusion[i] += min(cfg.dirtDepth.numberValue(), dist);
             } else {
-                lightsurf->occlusion[i] += cfg.dirtDepth.floatValue();
+                lightsurf->occlusion[i] += cfg.dirtDepth.numberValue();
             }
         }
     }
@@ -2467,7 +2459,7 @@ static void LightFace_CalculateDirt(lightsurf_t *lightsurf)
     // process the results.
     for (int i = 0; i < lightsurf->numpoints; i++) {
         vec_t avgHitdist = lightsurf->occlusion[i] / (float)numDirtVectors;
-        lightsurf->occlusion[i] = 1 - (avgHitdist / cfg.dirtDepth.floatValue());
+        lightsurf->occlusion[i] = 1 - (avgHitdist / cfg.dirtDepth.numberValue());
     }
 
     delete[] myUps;
@@ -2488,10 +2480,10 @@ static void LightFace_ScaleAndClamp(const lightsurf_t *lightsurf, lightmapdict_t
             color = qv::max(color, {0});
 
             /* Scale and clamp any out-of-range samples */
-            color *= cfg.rangescale.floatValue();
+            color *= cfg.rangescale.numberValue();
 
             for (auto &c : color) {
-                c = pow(c / 255.0f, 1.0 / cfg.lightmapgamma.floatValue()) * 255.0f;
+                c = pow(c / 255.0f, 1.0 / cfg.lightmapgamma.numberValue()) * 255.0f;
             }
 
             vec_t maxcolor = qv::max(color);
@@ -3213,7 +3205,7 @@ void LightFace(const mbsp_t *bsp, mface_t *face, facesup_t *facesup, const globa
                     continue;
                 if (entity.nostaticlight.boolValue())
                     continue;
-                if (entity.light.floatValue() > 0)
+                if (entity.light.numberValue() > 0)
                     LightFace_Entity(bsp, &entity, lightsurf, lightmaps);
             }
             for (const sun_t &sun : GetSuns())
@@ -3233,10 +3225,10 @@ void LightFace(const mbsp_t *bsp, mface_t *face, facesup_t *facesup, const globa
             LightFace_Min(bsp, face, Face_LookupTextureColor(bsp, face), texinfo->value * 2.0f, lightsurf,
                 lightmaps); // Playing by the eye here... 2.0 == 256 / 128; 128 is the light value, at which the surface
                             // is renered fullbright, when using arghrad3
-        } else if (lightsurf->minlight > cfg.minlight.floatValue()) {
+        } else if (lightsurf->minlight > cfg.minlight.numberValue()) {
             LightFace_Min(bsp, face, lightsurf->minlight_color, lightsurf->minlight, lightsurf, lightmaps);
         } else {
-            const float light = cfg.minlight.floatValue();
+            const float light = cfg.minlight.numberValue();
             const qvec3d &color = cfg.minlight_color.vec3Value();
 
             LightFace_Min(bsp, face, color, light, lightsurf, lightmaps);
@@ -3249,7 +3241,7 @@ void LightFace(const mbsp_t *bsp, mface_t *face, facesup_t *facesup, const globa
                     continue;
                 if (entity.nostaticlight.boolValue())
                     continue;
-                if (entity.light.floatValue() < 0)
+                if (entity.light.numberValue() < 0)
                     LightFace_Entity(bsp, &entity, lightsurf, lightmaps);
             }
             for (const sun_t &sun : GetSuns())

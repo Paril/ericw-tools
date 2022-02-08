@@ -223,7 +223,7 @@ public:
     settings::lockable_scalar shadowself{settings::strings{"shadowself", "selfshadow"}, 0};
     settings::lockable_scalar shadowworldonly{"shadowworldonly", 0};
     settings::lockable_scalar switchableshadow{"switchableshadow", 0};
-    settings::lockable_scalar switchshadstyle{"switchshadstyle", 0};
+    settings::lockable_int32 switchshadstyle{"switchshadstyle", 0};
     settings::lockable_scalar dirt{"dirt", 0};
     settings::lockable_scalar phong{"phong", 0};
     settings::lockable_scalar phong_angle{"phong_angle", 0};
@@ -238,11 +238,11 @@ public:
 
     float getResolvedPhongAngle() const
     {
-        const float s = phong_angle.floatValue();
+        const float s = phong_angle.numberValue();
         if (s != 0) {
             return s;
         }
-        if (phong.intValue() > 0) {
+        if (phong.numberValue() > 0) {
             return DEFAULT_PHONG_ANGLE;
         }
         return 0;
@@ -269,8 +269,8 @@ public:
     settings::lockable_color minlight_color{
         settings::strings{"minlight_color", "mincolor"}, 255.0, 255.0, 255.0};
     settings::lockable_bool spotlightautofalloff{"spotlightautofalloff", false}; // mxd
-    settings::lockable_scalar compilerstyle_start{
-        "compilerstyle_start", 32}; // start index for switchable light styles, default 32 (FIXME: should be int)
+    settings::lockable_int32 compilerstyle_start{
+        "compilerstyle_start", 32}; // start index for switchable light styles, default 32
 
     /* dirt */
     settings::lockable_bool globalDirt{
@@ -279,7 +279,7 @@ public:
     settings::lockable_scalar dirtDepth{"dirtdepth", 128.0, 1.0, std::numeric_limits<vec_t>::infinity()};
     settings::lockable_scalar dirtScale{"dirtscale", 1.0, 0.0, 100.0};
     settings::lockable_scalar dirtGain{"dirtgain", 1.0, 0.0, 100.0};
-    settings::lockable_scalar dirtAngle{"dirtangle", 88.0, 0.0, 90.0};
+    settings::lockable_scalar dirtAngle{"dirtangle", 88.0, 1.0, 90.0};
     settings::lockable_bool minlightDirt{"minlight_dirt", false}; // apply dirt to minlight?
 
     /* phong */

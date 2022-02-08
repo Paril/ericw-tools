@@ -22,7 +22,5 @@ void InterruptThreadProgress__(void);
 
 /**
  * Configures TBB to have the given max threads (specify 0 for unlimited).
- * 
- * Call this from main() and keep the returned object until main() finishes.
  */
-std::unique_ptr<tbb::global_control> ConfigureTBB(int maxthreads);
+void configureTBB(int maxthreads);

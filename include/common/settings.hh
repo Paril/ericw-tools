@@ -59,10 +59,11 @@ namespace settings
     class lockable_base
     {
     protected:
-        source _source;
+        source _source = source::DEFAULT;
         strings _names;
+        const char *_group, *_description;
 
-        inline lockable_base(const strings &names) : _source(source::DEFAULT), _names(names)
+        inline lockable_base(const strings &names, const char *group, const char *description) : _names(names), _group(group), _description(description)
         {
             Q_assert(_names.size() > 0);
         }
@@ -79,6 +80,8 @@ namespace settings
     public:
         inline const char *primaryName() const { return _names.at(0); }
         inline const strings &names() const { return _names; }
+        inline const char *getGroup() const { return _group; }
+        inline const char *getDescription() const { return _description; }
 
         virtual bool parse(parser_base_t &parser, bool locked = false) = 0;
         virtual std::string stringValue() const = 0;
@@ -111,6 +114,10 @@ namespace settings
         }
 
     public:
+        inline lockable_bool(const strings &names, bool v, const char *group = "", const char *description = "") : lockable_base(names, group, description), _value(v) { }
+
+        inline lockable_bool(const char *name, bool v, const char *group = "", const char *description = "") : lockable_bool(strings{name}, v, group, description) { }
+
         inline void setBoolValueLocked(bool f) { setBoolValueInternal(f, source::COMMANDLINE); }
 
         inline void setBoolValue(bool f) { setBoolValueInternal(f, source::MAP); }
@@ -151,18 +158,15 @@ namespace settings
         virtual std::string stringValue() const { return _value ? "1" : "0"; }
 
         virtual std::string format() const { return "[0|1]"; }
-
-        inline lockable_bool(const strings &names, bool v) : lockable_base(names), _value(v) { }
-
-        inline lockable_bool(const char *name, bool v) : lockable_bool(strings{name}, v) { }
     };
 
-    class lockable_scalar : public lockable_base
+    template<typename T>
+    class lockable_numeric : public lockable_base
     {
     private:
-        vec_t _value, _min, _max;
+        T _value, _min, _max;
 
-        inline void setFloatInternal(vec_t f, source newsource)
+        inline void setValueInternal(T f, source newsource)
         {
             if (changeSource(newsource)) {
                 if (f < _min) {
@@ -178,19 +182,13 @@ namespace settings
         }
 
     public:
-        constexpr bool boolValue() const
-        {
-            // we use -1 to mean false
-            return intValue() == 1;
-        }
+        constexpr const T &numberValue() const { return _value; }
 
-        constexpr int intValue() const { return static_cast<int>(_value); }
+        inline bool boolValue() const { return _value > 0; }
 
-        constexpr const vec_t &floatValue() const { return _value; }
+        inline void setNumberValue(T f) { setValueInternal(f, source::MAP); }
 
-        inline void setFloatValue(vec_t f) { setFloatInternal(f, source::MAP); }
-
-        inline void setFloatValueLocked(vec_t f) { setFloatInternal(f, source::COMMANDLINE); }
+        inline void setNumberValueLocked(T f) { setValueInternal(f, source::COMMANDLINE); }
 
         virtual bool parse(parser_base_t &parser, bool locked = false) override
         {
@@ -199,12 +197,18 @@ namespace settings
             }
 
             try {
-                vec_t f = std::stod(parser.token);
+                T f;
+                
+                if constexpr (std::is_floating_point_v<T>) {
+                    f = std::stod(parser.token);
+                } else {
+                    f = static_cast<T>(std::stoull(parser.token));
+                }
 
                 if (locked)
-                    setFloatValueLocked(f);
+                    setNumberValueLocked(f);
                 else
-                    setFloatValue(f);
+                    setNumberValue(f);
 
                 return true;
             }
@@ -217,9 +221,8 @@ namespace settings
 
         virtual std::string format() const { return "n"; }
 
-        inline lockable_scalar(strings names, vec_t v, vec_t minval = -std::numeric_limits<vec_t>::infinity(),
-            vec_t maxval = std::numeric_limits<vec_t>::infinity())
-            : lockable_base(names), _value(v), _min(minval), _max(maxval)
+        inline lockable_numeric(strings names, T v, T minval, T maxval, const char *group = "", const char *description = "")
+            : lockable_base(names, group, description), _value(v), _min(minval), _max(maxval)
         {
             // check the default value is valid
             Q_assert(_min < _max);
@@ -227,17 +230,32 @@ namespace settings
             Q_assert(_value <= _max);
         }
 
-        inline lockable_scalar(const char *name, vec_t v, vec_t minval = -std::numeric_limits<vec_t>::infinity(),
-            vec_t maxval = std::numeric_limits<vec_t>::infinity())
-            : lockable_scalar(strings{name}, v, minval, maxval)
+        template<typename = std::enable_if_t<!std::is_enum_v<T>>>
+        inline lockable_numeric(strings names, T v, const char *group = "", const char *description = "")
+            : lockable_numeric(names, v, std::numeric_limits<T>::lowest(), std::numeric_limits<T>::max(), group, description)
+        {
+        }
+
+        inline lockable_numeric(const char *name, T v, T minval, T maxval, const char *group = "", const char *description = "")
+            : lockable_numeric(strings{name}, v, minval, maxval, group, description)
+        {
+        }
+        
+        template<typename = std::enable_if_t<!std::is_enum_v<T>>>
+        inline lockable_numeric(const char *name, T v, const char *group = "", const char *description = "")
+            : lockable_numeric(strings{name}, v, group, description)
         {
         }
     };
+    
+    using lockable_scalar = lockable_numeric<vec_t>;
+    using lockable_int32 = lockable_numeric<int32_t>;
 
     class lockable_string : public lockable_base
     {
     private:
         std::string _value;
+        std::string _format;
 
     public:
         virtual bool parse(parser_base_t &parser, bool locked = false) override
@@ -296,13 +314,13 @@ namespace settings
 
         virtual std::string stringValue() const { return _value; }
 
-        virtual std::string format() const { return "\"str\""; }
+        virtual std::string format() const { return _format; }
 
-        inline lockable_string(strings names, std::string v) : lockable_base(names), _value(v)
+        inline lockable_string(strings names, std::string v, const std::string_view &format = "\"str\"", const char *group = "", const char *description = "") : lockable_base(names, group, description), _value(v), _format(format)
         {
         }
 
-        inline lockable_string(const char *name, std::string v) : lockable_string(strings{name}, v) { }
+        inline lockable_string(const char *name, std::string v, const std::string_view &format = "\"str\"", const char *group = "", const char *description = "") : lockable_string(strings{name}, v, format, group, description) { }
     };
 
     class lockable_vec3 : public lockable_base
@@ -325,14 +343,14 @@ namespace settings
 
     public:
         inline lockable_vec3(
-            strings names, vec_t a, vec_t b, vec_t c)
-            : lockable_base(names)
+            strings names, vec_t a, vec_t b, vec_t c, const char *group = "", const char *description = "")
+            : lockable_base(names, group, description)
         {
             transformVec3Value({a, b, c}, _value);
         }
 
-        inline lockable_vec3(const char *name, vec_t a, vec_t b, vec_t c)
-            : lockable_vec3(strings{name}, a, b, c)
+        inline lockable_vec3(const char *name, vec_t a, vec_t b, vec_t c, const char *group = "", const char *description = "")
+            : lockable_vec3(strings{name}, a, b, c, group, description)
         {
         }
 
@@ -402,6 +420,7 @@ namespace settings
     private:
         std::map<std::string, lockable_base *> _settingsmap;
         std::set<lockable_base *> _settings;
+        std::map<std::string, std::set<lockable_base *>> _groupedSettings;
 
     public:
         std::string programName, remainderName = "filename";
@@ -420,6 +439,7 @@ namespace settings
                 }
 
                 _settings.emplace(setting);
+                _groupedSettings[setting->getGroup()].insert(setting);
             }
         }
 
@@ -464,6 +484,8 @@ namespace settings
         inline auto begin() const { return _settings.begin(); }
         inline auto end() const { return _settings.end(); }
 
+        inline auto grouped() const { return _groupedSettings; }
+
         [[noreturn]] void printHelp();
         void printSummary();
 
@@ -476,4 +498,16 @@ namespace settings
          */
         std::vector<std::string> parse(parser_base_t &parser);
     };
+
+    // global settings
+    extern lockable_int32 threads;
+    extern lockable_bool verbose;
+    extern lockable_bool quiet;
+    extern lockable_bool nopercent;
+
+    // global settings dict, used by all tools
+    extern dict globalSettings;
+
+    // initialize stuff from the settings above
+    void initGlobalSettings();
 };

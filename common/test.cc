@@ -272,6 +272,17 @@ TEST(settings, doubleHyphen)
     ASSERT_EQ(stringSetting.stringValue(), "my name!");
 }
 
+// test groups; ensure that null is always the first group
+TEST(settings, grouping)
+{
+    settings::lockable_scalar scalarSetting("threads", 0, "Performance", "number of threads; zero for automatic");
+    settings::lockable_bool boolSetting("fast", false, "Performance", "use faster algorithm, for quick compiles");
+    settings::lockable_string stringSetting("filename", "", "filename.bat");
+    settings::dict settings{&stringSetting, &scalarSetting, &boolSetting};
+    ASSERT_TRUE(settings.grouped().begin()->first == "");
+    //settings.printHelp();
+}
+
 int main(int argc, char **argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

@@ -176,13 +176,13 @@ void RunThreadsOn(int start, int workcnt, void *(func)(void *), void *arg)
  * =======================================================================
  */
 
-std::unique_ptr<tbb::global_control> ConfigureTBB(int maxthreads)
+static std::unique_ptr<tbb::global_control> tbbGlobalControl;
+
+void configureTBB(int maxthreads)
 {
-    auto tbbOptions = std::unique_ptr<tbb::global_control>();
+    tbbGlobalControl = std::unique_ptr<tbb::global_control>();
 
     if (maxthreads > 0) {
-        tbbOptions = std::make_unique<tbb::global_control>(tbb::global_control::max_allowed_parallelism, maxthreads);
+        tbbGlobalControl = std::make_unique<tbb::global_control>(tbb::global_control::max_allowed_parallelism, maxthreads);
     }
-
-    return tbbOptions;
 }

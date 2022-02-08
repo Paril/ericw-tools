@@ -1,4 +1,4 @@
-/*  Copyright (C) 2016 Eric Wasylishen
+﻿/*  Copyright (C) 2016 Eric Wasylishen
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -18,19 +18,38 @@
  */
 
 #include "common/settings.hh"
+#include "common/threads.hh"
 
 namespace settings
 {
+    // global settings
+    lockable_int32 threads { "threads", 0, "Performance", "number of threads to use, maximum; 0 is all available threads." };
+	lockable_bool verbose { strings { "verbose", "v" }, false, "Logging", "verbose output" };
+    lockable_bool quiet { strings { "quiet", "noverbose" }, false, "Logging", "suppress non-important output" };
+    lockable_bool nopercent { "nopercent", false, "Logging", "don't output percentage messages" };
+
+    // global settings dict, used by all tools
+    dict globalSettings { &threads, &verbose, &quiet, &nopercent };
+
 	[[noreturn]] void dict::printHelp()
 	{
-		fmt::print("usage: {} [-help/-h] [-options] {}\n\n", programName, remainderName);
+		fmt::print("usage: {} [-help/-h/-?] [-options] {}\n\n", programName, remainderName);
 
-		for (auto setting : _settings) {
-			fmt::print("  -{} {}\n", setting->primaryName(), setting->format());
-
-			for (int i = 1; i < setting->names().size(); i++) {
-				fmt::print("  |{} {}\n", setting->names()[i], setting->format());
+		for (auto grouped : grouped()) {
+			if (!grouped.first.empty()) {
+				fmt::print("{}:\n", grouped.first);
 			}
+
+			for (auto setting : grouped.second) {
+				size_t numPadding = max(static_cast<size_t>(0), 28 - (strlen(setting->primaryName()) + 4));
+				fmt::print("  -{} {:{}}{}\n", setting->primaryName(), setting->format(), numPadding, setting->getDescription());
+
+				for (int i = 1; i < setting->names().size(); i++) {
+					fmt::print("  |{}\n", setting->names()[i]);
+				}
+			}
+
+			printf("\n");
 		}
 
 		exit(0);
@@ -75,7 +94,7 @@ namespace settings
 				throw parse_exception("stray \"-\" in command line; please check your parameters");
 			}
 
-			if (parser.token == "help" || parser.token == "h") {
+			if (parser.token == "help" || parser.token == "h" || parser.token == "?") {
 				printHelp();
 			}
 
@@ -106,5 +125,22 @@ namespace settings
 		}
 
 		return remainder;
+	}
+
+	void initGlobalSettings()
+	{
+		configureTBB(threads.numberValue());
+
+		if (verbose.boolValue()) {
+			log_mask |= 1 << LOG_VERBOSE;
+		}
+
+		if (nopercent.boolValue()) {
+			log_mask &= ~(1 << LOG_PERCENT);
+		}
+		
+		if (quiet.boolValue()) {
+			log_mask &= ~((1 << LOG_PERCENT) | (1 << LOG_STAT) | (1 << LOG_PROGRESS));
+		}
 	}
 }

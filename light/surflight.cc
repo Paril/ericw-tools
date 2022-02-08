@@ -108,7 +108,7 @@ static void *MakeSurfaceLightsThread(void *arg)
         save_winding_points_args_t args{};
         args.points = &points;
 
-        winding.dice(cfg.surflightsubdivision.floatValue(), SaveWindingCenterFn, &args);
+        winding.dice(cfg.surflightsubdivision.numberValue(), SaveWindingCenterFn, &args);
         total_surflight_points += points.size();
 
         // Get texture color
