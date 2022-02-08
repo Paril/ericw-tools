@@ -1316,21 +1316,34 @@ static void ParseOptions(char *szOptions)
         }
         szTok = GetTok(szTok + strlen(szTok) + 1, szEnd);
     }
+}
 
-    // if we wanted hexen2, update it now
-    if (hexen2) {
-        if (options.target_version == &bspver_bsp2) {
-            options.target_version = &bspver_h2bsp2;
-        } else if (options.target_version == &bspver_bsp2rmq) {
-            options.target_version = &bspver_h2bsp2rmq;
-        } else {
-            options.target_version = &bspver_h2;
+namespace settings
+{
+    inline void set_target_version(const bspversion_t *version)
+    {
+        if (options.target_version) {
+            FError("version was set by multiple flags; currently {}, tried to change to {}\n", options.target_version->name, version->name);
         }
     }
 
-    // update target game
-    options.target_game = options.target_version->game;
-}
+    inline void compile_settings()
+    {
+        // if we wanted hexen2, update it now
+        if (hexen2) {
+            if (options.target_version == &bspver_bsp2) {
+                options.target_version = &bspver_h2bsp2;
+            } else if (options.target_version == &bspver_bsp2rmq) {
+                options.target_version = &bspver_h2bsp2rmq;
+            } else {
+                options.target_version = &bspver_h2;
+            }
+        }
+
+        // update target game
+        options.target_game = options.target_version->game;
+    }
+};
 
 /*
 ==================
@@ -1342,6 +1355,8 @@ static void InitQBSP(int argc, const char **argv)
     settings::globalSettings.programName = fs::path(argv[0]).stem().string();
     settings::globalSettings.remainderName = "sourcefile.map [destfile.bsp]";
     settings::register_settings();
+
+    settings::compile_settings();
 
     settings::globalSettings.printHelp();
 
