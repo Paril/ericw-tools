@@ -332,7 +332,7 @@ static std::vector<face_t> CreateBrushFaces(const mapentity_t *src, hullbrush_t 
         }
         
         // this face is a keeper
-        face_t &f = facelist.emplace_front();
+        face_t &f = facelist.emplace_back();
         f.planenum = PLANENUM_LEAF;
 
         f.w.resize(w->size());
@@ -402,21 +402,6 @@ static std::vector<face_t> CreateBrushFaces(const mapentity_t *src, hullbrush_t 
     }
 
     return { std::make_move_iterator(facelist.begin()), std::make_move_iterator(facelist.end()) };
-}
-
-/*
-=================
-FreeBrushFaces
-=================
-*/
-static void FreeBrushFaces(face_t *facelist)
-{
-    face_t *face, *next;
-
-    for (face = facelist; face; face = next) {
-        next = face->next;
-        delete face;
-    }
 }
 
 /*

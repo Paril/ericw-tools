@@ -31,13 +31,13 @@ If the face is >256 in either texture direction, carve a valid sized
 piece off and insert the remainder in the next link
 ===============
 */
-void SubdivideFace(face_t *f, face_t **prevptr)
+std::list<face_t *>::iterator SubdivideFace(std::list<face_t *>::iterator it, std::list<face_t *> &surfaces)
 {
     vec_t mins, maxs;
     vec_t v;
     int axis;
     qbsp_plane_t plane;
-    face_t *front, *back, *next;
+    face_t *front, *back;
     const mtexinfo_t *tex;
     vec_t subdiv;
     vec_t extent;
@@ -45,15 +45,18 @@ void SubdivideFace(face_t *f, face_t **prevptr)
 
     // subdivision disabled
     if (!options.dxSubdivide) {
-        return;
+        return it;
     }
+
+    face_t *f = *it;
 
     /* special (non-surface cached) faces don't need subdivision */
     tex = &map.mtexinfos.at(f->texinfo);
 
     if (tex->flags.is_skip || tex->flags.is_hint ||
-        !options.target_game->surf_is_subdivided(tex->flags))
-        return;
+        !options.target_game->surf_is_subdivided(tex->flags)) {
+        return it;
+    }
     // subdivision is pretty much pointless other than because of lightmap block limits
     // one lightmap block will always be added at the end, for smooth interpolation
 
@@ -91,8 +94,9 @@ void SubdivideFace(face_t *f, face_t **prevptr)
 
             extent = ceil(maxs) - floor(mins);
             //          extent = maxs - mins;
-            if (extent <= subdiv)
+            if (extent <= subdiv) {
                 break;
+            }
 
             // split it
             plane.normal = tmp;
@@ -106,30 +110,26 @@ void SubdivideFace(face_t *f, face_t **prevptr)
             //                plane.dist = (mins + subdiv) / v;
             plane.dist = (mins + subdiv - 16) / v;
 
-            next = f->next;
-            SplitFace(f, plane, &front, &back);
+            std::tie(front, back) = SplitFace(f, plane);
             if (!front || !back) {
                 LogPrintLocked("didn't split\n");
                 break;
                 // FError("Didn't split the polygon");
             }
-            *prevptr = back;
-            back->next = front;
-            front->next = next;
+            it = surfaces.erase(it);
+            it = surfaces.insert(it, front);
+            it = surfaces.insert(it, back);
             f = back;
         }
     }
+
+    return it;
 }
 
 static void FreeNode(node_t* node)
 {
-    if (node->faces) {
-        face_t *f, *next;
-        for (f = node->faces; f; f = next) {
-            next = f->next;
-            delete f;        
-        }
-        node->faces = nullptr;
+    for (face_t *f : node->facelist) {
+        delete f;
     }
     delete node;
 }
@@ -152,23 +152,19 @@ have inside faces.
 =============================================================================
 */
 
-static void GatherNodeFaces_r(node_t *node, std::map<int, face_t *> &planefaces)
+static void GatherNodeFaces_r(node_t *node, std::map<int, std::list<face_t *>> &planefaces)
 {
-    face_t *f, *next;
-
     if (node->planenum != PLANENUM_LEAF) {
         // decision node
-        for (f = node->faces; f; f = next) {
-            next = f->next;
+        for (face_t *f : node->facelist) {
             if (!f->w.size()) { // face was removed outside
                 delete f;
             } else {
-                f->next = planefaces[f->planenum];
-                planefaces[f->planenum] = f;
+                planefaces[f->planenum].emplace_back(f);
             }
         }
         // don't attempt to free node->faces again as ownership has moved to the planefaces map
-        node->faces = nullptr;
+        node->facelist = {};
         GatherNodeFaces_r(node->children[0], planefaces);
         GatherNodeFaces_r(node->children[1], planefaces);
     }
@@ -180,9 +176,9 @@ static void GatherNodeFaces_r(node_t *node, std::map<int, face_t *> &planefaces)
 GatherNodeFaces
 ================
 */
-std::list<surface_t> GatherNodeFaces(node_t *headnode)
+std::vector<surface_t> GatherNodeFaces(node_t *headnode)
 {
-    std::map<int, face_t *> planefaces;
+    std::map<int, std::list<face_t *>> planefaces;
     GatherNodeFaces_r(headnode, planefaces);
     return BuildSurfaces(planefaces);
 }
@@ -363,7 +359,7 @@ static int MakeFaceEdges_r(mapentity_t *entity, node_t *node, int progress)
     if (node->planenum == PLANENUM_LEAF)
         return progress;
 
-    for (face_t *f = node->faces; f; f = f->next) {
+    for (face_t *f : node->facelist) {
         FindFaceEdges(entity, f);
     }
 
@@ -439,7 +435,7 @@ static void GrowNodeRegion(mapentity_t *entity, node_t *node)
 
     node->firstface = static_cast<int>(map.bsp.dfaces.size());
 
-    for (face_t *face = node->faces; face; face = face->next) {
+    for (face_t *face : node->facelist) {
         Q_assert(face->planenum == node->planenum);
 
         // emit a region
@@ -473,12 +469,10 @@ CountData_r
 */
 static void CountData_r(mapentity_t *entity, node_t *node, size_t &facesCount, size_t &vertexesCount)
 {
-    face_t *f;
-
     if (node->planenum == PLANENUM_LEAF)
         return;
 
-    for (f = node->faces; f; f = f->next) {
+    for (face_t *f : node->facelist) {
         CountFace(entity, f, facesCount, vertexesCount);
     }
 

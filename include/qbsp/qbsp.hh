@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include <list>
 #include <vector>
 #include <map>
 #include <unordered_map>
@@ -220,8 +221,6 @@ struct face_fragment_t
 
 struct face_t : face_fragment_t
 {
-    face_t *next;
-
     int planenum;
     int planeside; // which side is the front of the face
     int texinfo;
@@ -244,7 +243,7 @@ struct surface_t
     bool onnode; // true if surface has already been used
                  // as a splitting node
     bool detail_separator; // true if ALL faces are detail
-    face_t *faces; // links to all faces on either side of the surf
+    std::list<face_t *> faces; // links to all faces on either side of the surf
 
     // bounds of all the face windings; calculated via calculateInfo
     aabb3d bounds;
@@ -255,6 +254,19 @@ struct surface_t
 
     std::optional<size_t> outputplanenum; // only valid after WriteSurfacePlanes
 
+    inline surface_t shallowCopy()
+    {
+        surface_t copy;
+
+        copy.planenum = planenum;
+        copy.onnode = onnode;
+        copy.detail_separator = detail_separator;
+        copy.has_struct = has_struct;
+        copy.lmshift = lmshift;
+
+        return copy;
+    }
+
     // calculate bounds & info
     inline void calculateInfo()
     {
@@ -262,10 +274,12 @@ struct surface_t
         lmshift = std::numeric_limits<short>::max();
         has_struct = false;
 
-        for (const face_t *f = faces; f; f = f->next) {
-            for (auto &contents : f->contents)
-                if (!contents.is_valid(options.target_game, false))
+        for (auto &f : faces) {
+            for (auto &contents : f->contents) {
+                if (!contents.is_valid(options.target_game, false)) {
                     FError("Bad contents in face: {}", contents.to_string(options.target_game));
+                }
+            }
 
             lmshift = min(f->lmshift.front, f->lmshift.back);
 
@@ -295,7 +309,7 @@ struct node_t
     int firstface; // decision node only
     int numfaces; // decision node only
     node_t *children[2]; // children[0] = front side, children[1] = back side of plane. only valid for decision nodes
-    face_t *faces; // decision nodes only, list for both sides
+    std::list<face_t *> facelist; // decision nodes only, list for both sides
 
     // information for leafs
     contentflags_t contents; // leaf nodes (0 for decision nodes)
