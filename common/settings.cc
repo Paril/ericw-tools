@@ -23,10 +23,13 @@
 namespace settings
 {
     // global settings
-    lockable_int32 threads { "threads", 0, "Performance", "number of threads to use, maximum; 0 is all available threads." };
-	lockable_bool verbose { strings { "verbose", "v" }, false, "Logging", "verbose output" };
-    lockable_bool quiet { strings { "quiet", "noverbose" }, false, "Logging", "suppress non-important output" };
-    lockable_bool nopercent { "nopercent", false, "Logging", "don't output percentage messages" };
+	static settings_group performance_group { "Performance", 10 };
+    lockable_int32 threads { "threads", 0, &performance_group, "number of threads to use, maximum; leave 0 for automatic" };
+
+	static settings_group logging_group { "Logging", 5 };
+	lockable_bool verbose { strings { "verbose", "v" }, false, &logging_group, "verbose output" };
+    lockable_bool quiet { strings { "quiet", "noverbose" }, false, &logging_group, "suppress non-important output" };
+    lockable_bool nopercent { "nopercent", false, &logging_group, "don't output percentage messages" };
 
     // global settings dict, used by all tools
     dict globalSettings { &threads, &verbose, &quiet, &nopercent };
@@ -36,8 +39,8 @@ namespace settings
 		fmt::print("usage: {} [-help/-h/-?] [-options] {}\n\n", programName, remainderName);
 
 		for (auto grouped : grouped()) {
-			if (!grouped.first.empty()) {
-				fmt::print("{}:\n", grouped.first);
+			if (grouped.first) {
+				fmt::print("{}:\n", grouped.first->name);
 			}
 
 			for (auto setting : grouped.second) {

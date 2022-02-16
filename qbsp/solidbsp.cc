@@ -687,9 +687,11 @@ Called in parallel.
 */
 static std::list<face_t *> LinkNodeFaces(surface_t &surface)
 {
-    // subdivide large faces
-    for (auto it = surface.faces.begin(); it != surface.faces.end(); it++) {
-        it = SubdivideFace(it, surface.faces);
+    // subdivide large faces if requested
+    if (settings::subdivide.numberValue()) {
+        for (auto it = surface.faces.begin(); it != surface.faces.end(); it++) {
+            it = SubdivideFace(it, surface.faces);
+        }
     }
 
     surface.faces.reverse();

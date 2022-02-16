@@ -43,11 +43,6 @@ std::list<face_t *>::iterator SubdivideFace(std::list<face_t *>::iterator it, st
     vec_t extent;
     int lmshift;
 
-    // subdivision disabled
-    if (!options.dxSubdivide) {
-        return it;
-    }
-
     face_t *f = *it;
 
     /* special (non-surface cached) faces don't need subdivision */
@@ -64,18 +59,16 @@ std::list<face_t *>::iterator SubdivideFace(std::list<face_t *>::iterator it, st
     lmshift = f->lmshift[0];
     if (lmshift > 4)
         lmshift = 4; // no bugging out with legacy lighting
-    subdiv = 255 << lmshift;
 
     // legacy engines support 18*18 max blocks (at 1:16 scale).
     // the 18*18 limit can be relaxed in certain engines, and doing so will generally give a performance boost.
-    if (subdiv >= options.dxSubdivide)
-        subdiv = options.dxSubdivide;
+    subdiv = min(settings::subdivide.numberValue(), 255 << lmshift);
 
     //      subdiv += 8;
 
     // floating point precision from clipping means we should err on the low side
     // the bsp is possibly going to be used in both engines that support scaling and those that do not. this means we
-    // always over-estimate by 16 rathern than 1<<lmscale
+    // always over-estimate by 16 rather than 1<<lmscale
 
     for (axis = 0; axis < 2; axis++) {
         while (1) {

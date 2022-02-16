@@ -439,11 +439,6 @@ bool FillOutside(node_t *node, const int hullnum)
 {
     LogPrint(LOG_PROGRESS, "---- {} ----\n", __func__);
 
-    if (options.fNofill) {
-        LogPrint(LOG_STAT, "     skipped\n");
-        return false;
-    }
-
     /* Clear the outside filling state on all nodes */
     ClearOccupied_r(node);
 

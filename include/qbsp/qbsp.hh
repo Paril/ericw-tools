@@ -63,19 +63,12 @@ enum class conversion_t
 
 namespace settings
 {
-    extern lockable_bool hexen2;
-    extern lockable_bool hlbsp;
-    extern lockable_bool q2bsp;
-    extern lockable_bool qbism;
-    extern lockable_bool bsp2;
-    extern lockable_bool bsp2rmq;
+    extern lockable_int32 subdivide;
 };
 
 class options_t
 {
 public:
-    bool fNofill = false;
-    bool fNoclip = false;
     bool fNoskip = false;
     bool fNodetail = false;
     bool fOnlyents = false;
@@ -96,7 +89,6 @@ public:
     bool fNoTextures = false;
     const bspversion_t *target_version = &bspver_q1;
     const gamedef_t *target_game = target_version->game;
-    int dxSubdivide = 240;
     int dxLeakDist = 2;
     int maxNodeSize = 1024;
     /**

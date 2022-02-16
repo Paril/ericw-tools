@@ -39,17 +39,21 @@ constexpr const char *IntroString = "---- qbsp / ericw-tools " stringify(ERICWTO
 // command line flags
 namespace settings
 {
-    lockable_bool hexen2 { "hexen2", false, "Game/BSP Target", "target Hexen II's BSP format" };
-    lockable_bool hlbsp { "hlbsp", false, "Game/BSP Target", "target Half Life's BSP format" };
-    lockable_bool q2bsp { "q2bsp", false, "Game/BSP Target", "target Quake II's BSP format" };
-    lockable_bool qbism { "qbism", false, "Game/BSP Target", "target Qbism's extended Quake II BSP format" };
-    lockable_bool bsp2 { "bsp2", false, "Game/BSP Target", "target Quake's extended BSP2 format" };
-    lockable_bool bsp2rmq { "2psb", false, "Game/BSP Target", "target Quake's extended 2PSB format (RMQ compatible)" };
+    static settings_group game_target_group { "Game/BSP Target", 20 };
+    static lockable_bool hexen2 { "hexen2", false, &game_target_group, "target Hexen II's BSP format" };
+    static lockable_bool hlbsp { "hlbsp", false, &game_target_group, "target Half Life's BSP format" };
+    static lockable_bool q2bsp { "q2bsp", false, &game_target_group, "target Quake II's BSP format" };
+    static lockable_bool qbism { "qbism", false, &game_target_group, "target Qbism's extended Quake II BSP format" };
+    static lockable_bool bsp2 { "bsp2", false, &game_target_group, "target Quake's extended BSP2 format" };
+    static lockable_bool bsp2rmq { "2psb", false, &game_target_group, "target Quake's extended 2PSB format (RMQ compatible)" };
+    lockable_int32 subdivide { "subdivide", 240, nullptr, "change the subdivide threshold, in luxels. 0 will disable subdivision entirely" };
+    static lockable_bool nofill { "nofill", false, nullptr, "don't perform outside filling" };
+    static lockable_bool noclip { "noclip", false, nullptr, "don't write clip nodes (Q1-like BSP formats)" };
 
     inline void register_settings()
     {
         globalSettings.addSettings({
-            &hexen2, &hlbsp, &q2bsp, &qbism, &bsp2, &bsp2rmq
+            &hexen2, &hlbsp, &q2bsp, &qbism, &bsp2, &subdivide, &nofill, &noclip
         });
     }
 };
@@ -589,10 +593,10 @@ static void ProcessEntity(mapentity_t *entity, const int hullnum)
 
     if (hullnum > 0) {
         nodes = SolidBSP(entity, surfs, true);
-        if (entity == pWorldEnt() && !options.fNofill) {
+        if (entity == pWorldEnt() && !settings::nofill.boolValue()) {
             // assume non-world bmodels are simple
             PortalizeWorld(entity, nodes, hullnum);
-            if (FillOutside(nodes, hullnum)) {
+            if (!settings::nofill.boolValue() && FillOutside(nodes, hullnum)) {
                 // Free portals before regenerating new nodes
                 FreeAllPortals(nodes);
                 surfs = GatherNodeFaces(nodes);
@@ -625,7 +629,7 @@ static void ProcessEntity(mapentity_t *entity, const int hullnum)
         if (entity == pWorldEnt()) {
             // assume non-world bmodels are simple
             PortalizeWorld(entity, nodes, hullnum);
-            if (!options.fNofill && FillOutside(nodes, hullnum)) {
+            if (!settings::nofill.boolValue() && FillOutside(nodes, hullnum)) {
                 FreeAllPortals(nodes);
 
                 // get the remaining faces together into surfaces again
@@ -937,7 +941,7 @@ static void CreateHulls(void)
     if (!hulls.size()) {
         CreateSingleHull(HULL_COLLISION);
     // only create hull 0 if fNoclip is set
-    } else if (options.fNoclip) {
+    } else if (settings::noclip.boolValue()) {
         CreateSingleHull(0);
     // do all the hulls
     } else {
@@ -1038,7 +1042,6 @@ PrintOptions
         "Quake .BSP files.\n\n"
         "qbsp [options] sourcefile [destfile]\n\n"
         "Options:\n"
-        "   -nofill         Doesn't perform outside filling\n"
         "   -noclip         Doesn't build clip hulls\n"
         "   -noskip         Doesn't remove faces with the 'skip' texture\n"
         "   -nodetail       Convert func_detail to structural\n"
@@ -1160,11 +1163,7 @@ static void ParseOptions(char *szOptions)
             NameCount++;
         } else {
             szTok++;
-            if (!Q_strcasecmp(szTok, "nofill"))
-                options.fNofill = true;
-            else if (!Q_strcasecmp(szTok, "noclip"))
-                options.fNoclip = true;
-            else if (!Q_strcasecmp(szTok, "noskip"))
+            if (!Q_strcasecmp(szTok, "noskip"))
                 options.fNoskip = true;
             else if (!Q_strcasecmp(szTok, "nodetail"))
                 options.fNodetail = true;
@@ -1191,34 +1190,16 @@ static void ParseOptions(char *szOptions)
                 options.fOldaxis = false;
             else if (!Q_strcasecmp(szTok, "forcegoodtree"))
                 options.forceGoodTree = true;
-            else if (!Q_strcasecmp(szTok, "hexen2"))
-                hexen2 = true; // can be combined with -bsp2 or -2psb
-            else if (!Q_strcasecmp(szTok, "q2bsp"))
-                options.target_version = &bspver_q2;
-            else if (!Q_strcasecmp(szTok, "qbism"))
-                options.target_version = &bspver_qbism;
             else if (!Q_strcasecmp(szTok, "wrbrushes") || !Q_strcasecmp(szTok, "bspx"))
                 options.fbspx_brushes = true;
             else if (!Q_strcasecmp(szTok, "wrbrushesonly") || !Q_strcasecmp(szTok, "bspxonly")) {
                 options.fbspx_brushes = true;
-                options.fNoclip = true;
-            } else if (!Q_strcasecmp(szTok, "hlbsp")) {
-                options.target_version = &bspver_hl;
-            } else if (!Q_strcasecmp(szTok, "bsp2")) {
-                options.target_version = &bspver_bsp2;
-            } else if (!Q_strcasecmp(szTok, "2psb")) {
-                options.target_version = &bspver_bsp2rmq;
+                settings::noclip.setBoolValueLocked(true);
             } else if (!Q_strcasecmp(szTok, "leakdist")) {
                 szTok2 = GetTok(szTok + strlen(szTok) + 1, szEnd);
                 if (!szTok2)
                     FError("Invalid argument to option {}", szTok);
                 options.dxLeakDist = atoi(szTok2);
-                szTok = szTok2;
-            } else if (!Q_strcasecmp(szTok, "subdivide")) {
-                szTok2 = GetTok(szTok + strlen(szTok) + 1, szEnd);
-                if (!szTok2)
-                    FError("Invalid argument to option {}", szTok);
-                options.dxSubdivide = atoi(szTok2);
                 szTok = szTok2;
             } else if (!Q_strcasecmp(szTok, "wadpath") || !Q_strcasecmp(szTok, "xwadpath")) {
                 szTok2 = GetTok(szTok + strlen(szTok) + 1, szEnd);
@@ -1311,7 +1292,7 @@ static void ParseOptions(char *szOptions)
             } else if (!Q_strcasecmp(szTok, "contenthack")) {
                 options.fContentHack = true;
             } else {
-                FError("Unknown option '{}'", szTok);
+                //FError("Unknown option '{}'", szTok);
             }
         }
         szTok = GetTok(szTok + strlen(szTok) + 1, szEnd);
@@ -1323,20 +1304,45 @@ namespace settings
     inline void set_target_version(const bspversion_t *version)
     {
         if (options.target_version) {
-            FError("version was set by multiple flags; currently {}, tried to change to {}\n", options.target_version->name, version->name);
+            FError("BSP version was set by multiple flags; currently {}, tried to change to {}\n", options.target_version->name, version->name);
         }
     }
 
     inline void compile_settings()
     {
+        // set target BSP type
+        if (hlbsp.boolValue()) {
+            set_target_version(&bspver_hl);
+        }
+
+        if (q2bsp.boolValue()) {
+            set_target_version(&bspver_q2);
+        }
+
+        if (qbism.boolValue()) {
+            set_target_version(&bspver_qbism);
+        }
+
+        if (bsp2.boolValue()) {
+            set_target_version(&bspver_bsp2);
+        }
+
+        if (bsp2rmq.boolValue()) {
+            set_target_version(&bspver_bsp2rmq);
+        }
+
         // if we wanted hexen2, update it now
-        if (hexen2) {
+        if (hexen2.boolValue()) {
             if (options.target_version == &bspver_bsp2) {
                 options.target_version = &bspver_h2bsp2;
             } else if (options.target_version == &bspver_bsp2rmq) {
                 options.target_version = &bspver_h2bsp2rmq;
             } else {
                 options.target_version = &bspver_h2;
+            }
+        } else {
+            if (!options.target_version) {
+                options.target_version = &bspver_q1;
             }
         }
 
@@ -1356,9 +1362,9 @@ static void InitQBSP(int argc, const char **argv)
     settings::globalSettings.remainderName = "sourcefile.map [destfile.bsp]";
     settings::register_settings();
 
+    //settings::globalSettings.printHelp();
+    
     settings::compile_settings();
-
-    settings::globalSettings.printHelp();
 
     if (auto file = fs::load("qbsp.ini")) {
         LogPrint("Loading options from qbsp.ini\n");
