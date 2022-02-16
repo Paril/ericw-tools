@@ -478,6 +478,45 @@ static void serialize_bsp(const bspdata_t &bspdata, const mbsp_t &bsp, const std
     std::ofstream(name, std::fstream::out | std::fstream::trunc) << std::setw(4) << j;
 }
 
+#include "common/polylib.hh"
+#include "common/bsputils.hh"
+
+static void PrintBSPTextureUsage(const mbsp_t &bsp)
+{
+    std::unordered_map<std::string, vec_t> areas;
+
+    for (auto &face : bsp.dfaces)
+    {
+        const char *name = Face_TextureName(&bsp, &face);
+
+        if (!name || !*name) {
+            continue;
+        }
+
+        auto points = GLM_FacePoints(&bsp, &face);
+        polylib::winding_t w(points.begin(), points.end());
+        vec_t area = w.area();
+
+        areas[name] += area;
+    }
+
+    std::vector<std::tuple<std::string, vec_t>> areasVec;
+
+    for (auto &area : areas) {
+        areasVec.push_back(std::make_tuple(area.first, area.second));
+    }
+
+    std::sort(areasVec.begin(), areasVec.end(), [](auto &l, auto &r) {
+        return std::get<1>(r) < std::get<1>(l);
+    });
+
+    printf("\n");
+
+    for (auto &area : areasVec) {
+        fmt::print("{},{:.0f}\n", std::get<0>(area), std::get<1>(area));
+    }
+}
+
 int main(int argc, char **argv)
 {
     printf("---- bspinfo / ericw-tools " stringify(ERICWTOOLS_VERSION) " ----\n");
@@ -503,6 +542,8 @@ int main(int argc, char **argv)
         ConvertBSPFormat(&bsp, &bspver_generic);
 
         serialize_bsp(bsp, std::get<mbsp_t>(bsp.bsp), std::filesystem::path(source).replace_extension("bsp.json"));
+
+        PrintBSPTextureUsage(std::get<mbsp_t>(bsp.bsp));
 
         printf("---------------------\n");
 
