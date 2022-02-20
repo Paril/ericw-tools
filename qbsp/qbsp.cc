@@ -91,7 +91,7 @@ namespace settings
     lockable_bool expand { "expand", false, &common_format_group, "write hull 1 expanded brushes to expanded.map for debugging" };
     lockable_wadpathset wadpaths { strings { "wadpath", "xwadpath" }, &debugging_group, "add a path to the wad search paths; wads found in xwadpath's will not be embedded, otherwise they will be embedded (if not -notex)" };
 
-    inline void register_settings()
+    inline void registerSettings()
     {
         globalSettings.addSettings({
             &hexen2, &hlbsp, &q2bsp, &qbism, &bsp2, &subdivide, &nofill, &noclip, &noskip, &nodetail, &onlyents,
@@ -542,7 +542,7 @@ static void EmitAreaPortals(node_t *headnode)
 
 winding_t BaseWindingForPlane(const qplane3d &p)
 {
-    return winding_t::from_plane(p, settings::worldextent.numberValue());
+    return winding_t::from_plane(p, settings::worldextent.value());
 }
 
 /*
@@ -632,16 +632,16 @@ static void ProcessEntity(mapentity_t *entity, const int hullnum)
      */
     std::vector<surface_t> surfs = CSGFaces(entity);
 
-    if (settings::objexport.boolValue() && entity == pWorldEnt() && hullnum <= 0) {
+    if (settings::objexport.value() && entity == pWorldEnt() && hullnum <= 0) {
         ExportObj_Surfaces("post_csg", surfs);
     }
 
     if (hullnum > 0) {
         nodes = SolidBSP(entity, surfs, true);
-        if (entity == pWorldEnt() && !settings::nofill.boolValue()) {
+        if (entity == pWorldEnt() && !settings::nofill.value()) {
             // assume non-world bmodels are simple
             PortalizeWorld(entity, nodes, hullnum);
-            if (!settings::nofill.boolValue() && FillOutside(nodes, hullnum)) {
+            if (!settings::nofill.value() && FillOutside(nodes, hullnum)) {
                 // Free portals before regenerating new nodes
                 FreeAllPortals(nodes);
                 surfs = GatherNodeFaces(nodes);
@@ -664,7 +664,7 @@ static void ProcessEntity(mapentity_t *entity, const int hullnum)
          * sometimes result in reduced marksurfaces at the expense of
          * longer processing time.
          */
-        if (settings::forcegoodtree.boolValue())
+        if (settings::forcegoodtree.value())
             nodes = SolidBSP(entity, surfs, false);
         else
             nodes = SolidBSP(entity, surfs, entity == pWorldEnt());
@@ -674,7 +674,7 @@ static void ProcessEntity(mapentity_t *entity, const int hullnum)
         if (entity == pWorldEnt()) {
             // assume non-world bmodels are simple
             PortalizeWorld(entity, nodes, hullnum);
-            if (!settings::nofill.boolValue() && FillOutside(nodes, hullnum)) {
+            if (!settings::nofill.value() && FillOutside(nodes, hullnum)) {
                 FreeAllPortals(nodes);
 
                 // get the remaining faces together into surfaces again
@@ -692,7 +692,7 @@ static void ProcessEntity(mapentity_t *entity, const int hullnum)
                 // make the real portals for vis tracing
                 PortalizeWorld(entity, nodes, hullnum);
 
-                if (!settings::notjunc.boolValue()) {
+                if (!settings::notjunc.value()) {
                     TJunc(entity, nodes);
                 }
             }
@@ -707,14 +707,14 @@ static void ProcessEntity(mapentity_t *entity, const int hullnum)
         }
 
         // bmodels
-        if (entity != pWorldEnt() && !settings::notjunc.boolValue()) {
+        if (entity != pWorldEnt() && !settings::notjunc.value()) {
             TJunc(entity, nodes);
         }
 
         // convert detail leafs to solid (in case we didn't make the call above)
         DetailToSolid(nodes);
 
-        if (settings::objexport.boolValue() && entity == pWorldEnt()) {
+        if (settings::objexport.value() && entity == pWorldEnt()) {
             ExportObj_Nodes("pre_makefaceedges_plane_faces", nodes);
             ExportObj_Marksurfaces("pre_makefaceedges_marksurfaces", nodes);
         }
@@ -914,7 +914,7 @@ static void BSPX_CreateBrushList(void)
     const char *mod;
     struct bspxbrushes_s ctx;
 
-    if (!settings::wrbrushes.boolValue())
+    if (!settings::wrbrushes.value())
         return;
 
     BSPX_Brushes_Init(&ctx);
@@ -986,7 +986,7 @@ static void CreateHulls(void)
     if (!hulls.size()) {
         CreateSingleHull(HULL_COLLISION);
     // only create hull 0 if fNoclip is set
-    } else if (settings::noclip.boolValue()) {
+    } else if (settings::noclip.value()) {
         CreateSingleHull(0);
     // do all the hulls
     } else {
@@ -1038,11 +1038,11 @@ static void ProcessFile(void)
     // load brushes and entities
     LoadMapFile();
 
-    if (settings::convertmapformat.enumValue() != conversion_t::none) {
+    if (settings::convertmapformat.value() != conversion_t::none) {
         ConvertMapFile();
         return;
     }
-    if (settings::onlyents.boolValue()) {
+    if (settings::onlyents.value()) {
         UpdateEntLump();
         return;
     }
@@ -1059,7 +1059,7 @@ static void ProcessFile(void)
     }
 
     // calculate extents, if required
-    if (!settings::worldextent.numberValue()) {
+    if (!settings::worldextent.value()) {
         CalculateWorldExtent();
     }
 
@@ -1083,8 +1083,35 @@ namespace settings
         }
     }
 
-    inline void compile_settings()
+    inline void compileSettings(int argc, const char **argv)
     {
+        settings::globalSettings.usage = "qbsp performs geometric level processing of Quake .MAP files to create\nQuake .BSP files.\n\n";
+        settings::globalSettings.programName = fs::path(argv[0]).stem().string();
+        settings::globalSettings.remainderName = "sourcefile.map [destfile.bsp]";
+        settings::registerSettings();
+
+        if (auto file = fs::load("qbsp.ini")) {
+            LogPrint("Loading options from qbsp.ini\n");
+            parser_t parser(file->data(), file->size());
+            settings::globalSettings.parse(parser);
+        }
+
+        auto remainder = settings::globalSettings.parse(token_parser_t(argc, argv));
+
+        if (remainder.size() <= 0 || remainder.size() > 2) {
+            settings::globalSettings.printHelp();
+        }
+
+        options.szMapName = remainder[0];
+
+        if (remainder.size() == 2) {
+            options.szBSPName = remainder[1];
+        }
+
+        settings::globalSettings.printSummary();
+    
+        initGlobalSettings();
+
         // side effects from common
         if (log_mask & (1 << LOG_VERBOSE)) {
             options.fAllverbose = true;
@@ -1095,28 +1122,28 @@ namespace settings
         }
 
         // set target BSP type
-        if (hlbsp.boolValue()) {
+        if (hlbsp.value()) {
             set_target_version(&bspver_hl);
         }
 
-        if (q2bsp.boolValue()) {
+        if (q2bsp.value()) {
             set_target_version(&bspver_q2);
         }
 
-        if (qbism.boolValue()) {
+        if (qbism.value()) {
             set_target_version(&bspver_qbism);
         }
 
-        if (bsp2.boolValue()) {
+        if (bsp2.value()) {
             set_target_version(&bspver_bsp2);
         }
 
-        if (bsp2rmq.boolValue()) {
+        if (bsp2rmq.value()) {
             set_target_version(&bspver_bsp2rmq);
         }
 
         // if we wanted hexen2, update it now
-        if (hexen2.boolValue()) {
+        if (hexen2.value()) {
             if (options.target_version == &bspver_bsp2) {
                 options.target_version = &bspver_h2bsp2;
             } else if (options.target_version == &bspver_bsp2rmq) {
@@ -1142,24 +1169,7 @@ InitQBSP
 */
 static void InitQBSP(int argc, const char **argv)
 {
-    settings::globalSettings.usage = "qbsp performs geometric level processing of Quake .MAP files to create\nQuake .BSP files.\n\n";
-    settings::globalSettings.programName = fs::path(argv[0]).stem().string();
-    settings::globalSettings.remainderName = "sourcefile.map [destfile.bsp]";
-    settings::register_settings();
-
-    settings::globalSettings.printHelp();
-    
-    settings::compile_settings();
-
-    if (auto file = fs::load("qbsp.ini")) {
-        LogPrint("Loading options from qbsp.ini\n");
-        //ParseOptions(reinterpret_cast<char *>(file->data()));
-    }
-
-    //ParseOptions(szBuf);
-
-    //if (options.szMapName.empty())
-    //    PrintOptions();
+    settings::compileSettings(argc - 1, argv + 1);
 
     options.szMapName.replace_extension("map");
 
@@ -1185,7 +1195,7 @@ static void InitQBSP(int argc, const char **argv)
     }
 
     // Remove already existing files
-    if (!settings::onlyents.boolValue() && settings::convertmapformat.enumValue() == conversion_t::none) {
+    if (!settings::onlyents.value() && settings::convertmapformat.value() == conversion_t::none) {
         options.szBSPName.replace_extension("bsp");
         remove(options.szBSPName);
 

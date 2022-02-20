@@ -11,7 +11,7 @@ TEST(settings, booleanFlagImplicit)
         "-locked"
     };
     settings.parse(token_parser_t { std::size(arguments) - 1, arguments + 1 });
-    ASSERT_EQ(boolSetting.boolValue(), true);
+    ASSERT_EQ(boolSetting.value(), true);
 }
 
 TEST(settings, booleanFlagExplicit)
@@ -24,7 +24,7 @@ TEST(settings, booleanFlagExplicit)
         "1"
     };
     settings.parse(token_parser_t { std::size(arguments) - 1, arguments + 1 });
-    ASSERT_EQ(boolSetting.boolValue(), true);
+    ASSERT_EQ(boolSetting.value(), true);
 }
 
 TEST(settings, booleanFlagStray)
@@ -37,7 +37,7 @@ TEST(settings, booleanFlagStray)
         "stray"
     };
     settings.parse(token_parser_t { std::size(arguments) - 1, arguments + 1 });
-    ASSERT_EQ(boolSetting.boolValue(), true);
+    ASSERT_EQ(boolSetting.value(), true);
 }
 
 // test scalars
@@ -51,7 +51,7 @@ TEST(settings, scalarSimple)
         "1.25"
     };
     settings.parse(token_parser_t { std::size(arguments) - 1, arguments + 1 });
-    ASSERT_EQ(scalarSetting.floatValue(), 1.25);
+    ASSERT_EQ(scalarSetting.numberValue(), 1.25);
 }
 
 TEST(settings, scalarNegative)
@@ -235,7 +235,7 @@ TEST(settings, stringSpanWithBlockingOption)
     };
     settings.parse(token_parser_t { std::size(arguments) - 1, arguments + 1 });
     ASSERT_EQ(stringSetting.stringValue(), "i am a string");
-    ASSERT_EQ(flagSetting.boolValue(), true);
+    ASSERT_EQ(flagSetting.value(), true);
 }
 
 // test remainder
@@ -268,7 +268,7 @@ TEST(settings, doubleHyphen)
     settings::dict settings{&boolSetting, &stringSetting};
     const char *arguments[] = {"qbsp.exe", "--locked", "--name", "my name!"};
     settings.parse(token_parser_t{std::size(arguments) - 1, arguments + 1});
-    ASSERT_EQ(boolSetting.boolValue(), true);
+    ASSERT_EQ(boolSetting.value(), true);
     ASSERT_EQ(stringSetting.stringValue(), "my name!");
 }
 

@@ -75,7 +75,7 @@ static float Face_Alpha(const modelinfo_t *modelinfo, const mface_t *face)
     }
 
     // next check modelinfo alpha (defaults to 1.0)
-    return modelinfo->alpha.numberValue();
+    return modelinfo->alpha.value();
 }
 
 sceneinfo CreateGeometry(
@@ -333,7 +333,7 @@ static void Embree_FilterFuncN(const struct RTCFilterFunctionNArguments *args)
             // we hit a dynamic shadow caster. reject the hit, but store the
             // info about what we hit.
 
-            const int style = hit_modelinfo->switchshadstyle.numberValue();
+            const int style = hit_modelinfo->switchshadstyle.value();
 
             AddDynamicOccluderToRay(context, rayIndex, style);
 
@@ -547,7 +547,7 @@ void Embree_TraceInit(const mbsp_t *bsp)
                 // Q2: arghrad compat: sky faces only emit sunlight if:
                 // sky flag set, light flag set, value nonzero
                 if ((contents_or_surf_flags & Q2_SURF_SKY) != 0 &&
-                    (!arghradcompat || ((contents_or_surf_flags & Q2_SURF_LIGHT) != 0 && texinfo->value != 0))) {
+                    (!settings::arghradcompat.value() || ((contents_or_surf_flags & Q2_SURF_LIGHT) != 0 && texinfo->value != 0))) {
                     skyfaces.push_back(face);
                     continue;
                 }

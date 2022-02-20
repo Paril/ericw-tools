@@ -108,7 +108,7 @@ static void *MakeSurfaceLightsThread(void *arg)
         save_winding_points_args_t args{};
         args.points = &points;
 
-        winding.dice(cfg.surflightsubdivision.numberValue(), SaveWindingCenterFn, &args);
+        winding.dice(cfg.surflightsubdivision.value(), SaveWindingCenterFn, &args);
         total_surflight_points += points.size();
 
         // Get texture color
@@ -122,7 +122,7 @@ static void *MakeSurfaceLightsThread(void *arg)
             //        There are other more complex variants we could handle documented in the link above.
             // FIXME: we require value to be nonzero, see the check above - not sure if this matches arghrad
             if (cfg.sky_surface.isChanged()) {
-                texturecolor = cfg.sky_surface.vec3Value();
+                texturecolor = cfg.sky_surface.value();
             }
         }
 
@@ -156,7 +156,7 @@ static void *MakeSurfaceLightsThread(void *arg)
         // Init bbox...
         l.bounds = qvec3d(0);
 
-        if (!novisapprox)
+        if (!settings::novisapprox.value())
             l.bounds = EstimateVisibleBoundsAtPoint(facemidpoint);
 
         // Store light...

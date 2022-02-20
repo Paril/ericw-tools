@@ -23,10 +23,10 @@
 namespace settings
 {
     // global settings
-	static settings_group performance_group { "Performance", 10 };
+	settings_group performance_group { "Performance", 10 };
     lockable_int32 threads { "threads", 0, &performance_group, "number of threads to use, maximum; leave 0 for automatic" };
 
-	static settings_group logging_group { "Logging", 5 };
+	settings_group logging_group { "Logging", 5 };
 	lockable_bool verbose { strings { "verbose", "v" }, false, &logging_group, "verbose output" };
     lockable_bool quiet { strings { "quiet", "noverbose" }, false, &logging_group, "suppress non-important output" };
     lockable_bool nopercent { "nopercent", false, &logging_group, "don't output percentage messages" };
@@ -45,10 +45,10 @@ namespace settings
 
 			for (auto setting : grouped.second) {
 				size_t numPadding = max(static_cast<size_t>(0), 28 - (setting->primaryName().size() + 4));
-				fmt::print("  -{} {:{}}{}\n", setting->primaryName(), setting->format(), numPadding, setting->getDescription());
+				fmt::print("  -{} {:{}}    {}\n", setting->primaryName(), setting->format(), numPadding, setting->getDescription());
 
 				for (int i = 1; i < setting->names().size(); i++) {
-					fmt::print("  |{}\n", setting->names()[i]);
+					fmt::print("   \\{}\n", setting->names()[i]);
 				}
 			}
 
@@ -132,17 +132,17 @@ namespace settings
 
 	void initGlobalSettings()
 	{
-		configureTBB(threads.numberValue());
+		configureTBB(threads.value());
 
-		if (verbose.boolValue()) {
+		if (verbose.value()) {
 			log_mask |= 1 << LOG_VERBOSE;
 		}
 
-		if (nopercent.boolValue()) {
+		if (nopercent.value()) {
 			log_mask &= ~(1 << LOG_PERCENT);
 		}
 		
-		if (quiet.boolValue()) {
+		if (quiet.value()) {
 			log_mask &= ~((1 << LOG_PERCENT) | (1 << LOG_STAT) | (1 << LOG_PROGRESS));
 		}
 	}

@@ -210,7 +210,7 @@ constexpr int32_t PLANENUM_LEAF = -1;
 #define ZERO_EPSILON 0.0001
 #define DISTEPSILON 0.0001
 #define POINT_EPSILON 0.0001
-#define ON_EPSILON settings::epsilon.numberValue()
+#define ON_EPSILON settings::epsilon.value()
 #define EQUAL_EPSILON 0.0001
 #define T_EPSILON 0.0002
 #define CONTINUOUS_EPSILON 0.0005

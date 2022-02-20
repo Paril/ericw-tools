@@ -92,7 +92,7 @@ static void CheckFace(face_t *face, const mapface_t &sourceface)
         const qvec3d &p2 = face->w[(i + 1) % face->w.size()];
 
         for (auto &v : p1)
-            if (v > settings::worldextent.numberValue() || v < -settings::worldextent.numberValue())
+            if (v > settings::worldextent.value() || v < -settings::worldextent.value())
                 FError("line {}: coordinate out of range ({})", sourceface.linenum, v);
 
         /* check the point is on the face plane */
@@ -356,7 +356,7 @@ static std::vector<face_t> CreateBrushFaces(const mapentity_t *src, hullbrush_t 
         }
 
         // account for texture offset, from txqbsp-xt
-        if (!settings::oldrottex.boolValue()) {
+        if (!settings::oldrottex.value()) {
             mtexinfo_t texInfoNew = map.mtexinfos.at(mapface.texinfo);
             texInfoNew.outputnum = std::nullopt;
 
@@ -822,7 +822,7 @@ static void Brush_LoadEntity(mapentity_t *dst, const mapentity_t *src, const int
     }
 
     /* If the source entity is func_detail, set the content flag */
-    if (!settings::nodetail.boolValue()) {
+    if (!settings::nodetail.value()) {
         all_detail = false;
         if (!Q_strcasecmp(classname, "func_detail")) {
             all_detail = true;
@@ -889,11 +889,11 @@ static void Brush_LoadEntity(mapentity_t *dst, const mapentity_t *src, const int
             continue;
 
         /* -omitdetail option omits all types of detail */
-        if (settings::omitdetail.boolValue() && detail)
+        if (settings::omitdetail.value() && detail)
             continue;
-        if ((settings::omitdetail.boolValue() || settings::omitdetailillusionary.boolValue()) && detail_illusionary)
+        if ((settings::omitdetail.value() || settings::omitdetailillusionary.value()) && detail_illusionary)
             continue;
-        if ((settings::omitdetail.boolValue() || settings::omitdetailfence.boolValue()) && detail_fence)
+        if ((settings::omitdetail.value() || settings::omitdetailfence.value()) && detail_fence)
             continue;
 
         /* turn solid brushes into detail, if we're in hull0 */

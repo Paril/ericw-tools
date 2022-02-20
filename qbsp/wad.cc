@@ -62,7 +62,7 @@ static bool WAD_LoadInfo(wad_t &wad, bool external)
     int i, len;
     dmiptex_t miptex;
 
-    external |= settings::notextures.boolValue();
+    external |= settings::notextures.value();
 
     len = SafeRead(wad.file, hdr, sizeof(wadinfo_t));
     if (len != sizeof(wadinfo_t))

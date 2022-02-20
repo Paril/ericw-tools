@@ -162,7 +162,7 @@ static void AddBounceLight(const T &pos, const std::map<int, qvec3f> &colorBySty
     l.area = area;
     l.bounds = qvec3d(0);
 
-    if (!novisapprox) {
+    if (!settings::novisapprox.value()) {
         l.bounds = EstimateVisibleBoundsAtPoint(pos);
     }
 
@@ -239,7 +239,7 @@ static void *MakeBounceLightsThread(void *arg)
 
         // lerp between gray and the texture color according to `bouncecolorscale`
         qvec3f texturecolor = qvec3f(Face_LookupTextureColor(bsp, face)) / 255.0f;
-        qvec3f blendedcolor = mix(texturecolor, { 127.f / 255.f }, cfg.bouncecolorscale.numberValue());
+        qvec3f blendedcolor = mix(texturecolor, { 127.f / 255.f }, cfg.bouncecolorscale.value());
 
         // final colors to emit
         map<int, qvec3f> emitcolors;

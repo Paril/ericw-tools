@@ -60,15 +60,6 @@ globalconfig_t cfg_static{};
 
 bool dirt_in_use = false;
 
-float fadegate = EQUAL_EPSILON;
-int softsamples = 0;
-
-float surflight_subdivide = 128.0f;
-int sunsamples = 64;
-bool scaledonly = false;
-
-bool surflight_dump = false;
-
 static facesup_t *faces_sup; // lit2/bspx stuff
 
 /// start of lightmap data
@@ -98,35 +89,277 @@ std::vector<const modelinfo_t *> selfshadowlist;
 std::vector<const modelinfo_t *> shadowworldonlylist;
 std::vector<const modelinfo_t *> switchableshadowlist;
 
-int oversample = 1;
-int write_litfile = 0; /* 0 for none, 1 for .lit, 2 for bspx, 3 for both */
-int write_luxfile = 0; /* 0 for none, 1 for .lux, 2 for bspx, 3 for both */
-bool onlyents = false;
-bool novisapprox = false;
-bool nolights = false;
-bool debug_highlightseams = false;
-debugmode_t debugmode = debugmode_none;
-bool litonly = false;
-bool skiplighting = false;
-bool write_normals = false;
+#include <bitset>
+
+template<typename Enum>
+struct bitflags
+{
+    static_assert(std::is_enum_v<Enum>, "Must be enum");
+
+private:
+    using type = typename std::underlying_type_t<Enum>;
+    std::bitset<sizeof(type) * 8> _bits { };
+
+    constexpr bitflags(const std::bitset<sizeof(type) * 8> &bits) :
+        _bits(bits)
+    {
+    }
+
+public:
+    constexpr bitflags() { }
+
+    constexpr bitflags(const Enum &enumValue) :
+        _bits(static_cast<type>(enumValue))
+    {
+    }
+
+    constexpr bitflags(const bitflags &copy) = default;
+    constexpr bitflags(bitflags &&move) = default;
+    
+    constexpr bitflags &operator=(const bitflags &copy) = default;
+    constexpr bitflags &operator=(bitflags &&move) = default;
+
+    inline explicit operator bool() const { return _bits.any(); }
+
+    inline bool operator!() const { return !_bits.any(); }
+
+    inline operator Enum() const { return static_cast<Enum>(_bits.to_ulong()); }
+    
+    inline bitflags &operator|=(const bitflags &r) { _bits |= r._bits; return *this; }
+    inline bitflags &operator&=(const bitflags &r) { _bits &= r._bits; return *this; }
+    inline bitflags &operator^=(const bitflags &r) { _bits ^= r._bits; return *this; }
+    
+    inline bitflags operator|(const bitflags &r) { return bitflags(*this) |= r; }
+    inline bitflags operator&(const bitflags &r) { return bitflags(*this) &= r; }
+    inline bitflags operator^(const bitflags &r) { return bitflags(*this) ^= r; }
+
+    inline bitflags operator~() const { return ~_bits; }
+    
+    inline bool operator==(const bitflags &r) const { return _bits == r._bits; }
+    inline bool operator!=(const bitflags &r) const { return _bits != r._bits; }
+    
+    inline bool operator==(const Enum &r) const { return _bits == bitflags(r)._bits; }
+    inline bool operator!=(const Enum &r) const { return _bits != bitflags(r)._bits; }
+};
+
+enum class lightfile
+{
+    none = 0,
+    external = 1,
+    bspx = 2,
+    both = external | bspx,
+    lit2 = 4
+};
+
+static bitflags<lightfile> write_litfile = lightfile::none;
+static bitflags<lightfile> write_luxfile = lightfile::none;
+debugmodes debugmode = debugmodes::none;
 
 std::vector<surfflags_t> extended_texinfo_flags;
 
 std::filesystem::path mapfilename;
 
 int dump_facenum = -1;
-bool dump_face;
-qvec3d dump_face_point{};
-
 int dump_vertnum = -1;
-bool dump_vert;
-qvec3d dump_vert_point{};
 
-bool arghradcompat = false; // mxd
-
-settings::lockable_base *FindSetting(std::string name)
+static void PrintUsage()
 {
-    return cfg_static.settings.findSetting(name);
+    printf("usage: light [options] mapname.bsp\n"
+           "\n"
+           "Output format options:\n"
+           "  -lit                write .lit file\n"
+           "\n"
+           "Debug modes:\n"
+           "  -dirtdebug          only save the AO values to the lightmap\n"
+           "  -phongdebug         only save the normals to the lightmap\n"
+           "  -bouncedebug        only save bounced lighting to the lightmap\n"
+           "\n"
+           "Experimental options:\n"
+           "  -lit2               write .lit2 file\n"
+           "  -lux                write .lux file\n"
+           "  -bspxlit            writes rgb data into the bsp itself\n"
+           "  -bspx               writes both rgb and directions data into the bsp itself\n");
+
+    printf("\n");
+    printf("Overridable worldspawn keys:\n");
+
+    for (auto setting : cfg_static.settings) {
+        printf("  ");
+        for (int i = 0; i < setting->names().size(); i++) {
+            const auto &name = setting->names().at(i);
+
+            fmt::print("-{} {} ", name, setting->format());
+
+            if ((i + 1) < setting->names().size()) {
+                printf("| ");
+            }
+        }
+        printf("\n");
+    }
+}
+
+namespace settings
+{
+    fs::path sourceMap;
+    static settings_group output_group { "Output format options", 30 };
+    static settings_group debug_group { "Debug modes", 40 };
+    static settings_group postprocessing_group { "Postprocessing options", 50 };
+    static settings_group experimental_group { "Experimental options", 60 };
+    settings_group worldspawn_group { "Overridable worldspawn keys", 500 };
+
+    lockable_bool surflight_dump { "surflight_dump", false, &debug_group, "dump surface lights to a .map file" };
+    lockable_scalar surflight_subdivide { "surflight_subdivide", 128.0, 64.0, 2048.0, &performance_group, "surface light subdivision size" };
+    static lockable_bool onlyents { "onlyents", false, &output_group, "only update entities" };
+    static lockable_bool write_normals { "wrnormals", false, &output_group, "output normals, tangents and bitangents in a BSPX lump" };
+    static lockable_bool novanilla { "novanilla", false, &experimental_group, "implies -bspxlit; don't write vanilla lighting" };
+    lockable_scalar gate { "gate", EQUAL_EPSILON, &performance_group, "cutoff lights at this brightness level" };
+    lockable_int32 sunsamples { "sunsamples", 64, 8, 2048, &performance_group, "set samples for _sunlight2, default 64" };
+    lockable_bool arghradcompat { "arghradcompat", false, &output_group, "enable compatibility for Arghrad-specific keys" };
+    lockable_bool nolighting { "nolighting", false, &output_group, "don't output main world lighting (Q2RTX)" };
+    static lockable_vec3 debugface { "debugface", std::numeric_limits<vec_t>::quiet_NaN(), std::numeric_limits<vec_t>::quiet_NaN(), std::numeric_limits<vec_t>::quiet_NaN(), &debug_group, "" };
+    static lockable_vec3 debugvert { "debugvert", std::numeric_limits<vec_t>::quiet_NaN(), std::numeric_limits<vec_t>::quiet_NaN(), std::numeric_limits<vec_t>::quiet_NaN(), &debug_group, "" };
+    lockable_bool highlightseams { "highlightseams", false, &debug_group, "" };
+    lockable_soft soft { "soft", 0, 0, std::numeric_limits<int32_t>::max(), &postprocessing_group, "blurs the lightmap. specify n to blur radius in samples, otherwise auto" };
+    static lockable_string radlights { "radlights", "", "\"filename.rad\"", &experimental_group, "loads a <surfacename> <r> <g> <b> <intensity> file" };
+    static lockable_int32 lmscale { "lmscale", 0, &experimental_group, "change lightmap scale, vanilla engines only allow 16" };
+    lockable_extra extra { strings { "extra", "extra4" }, 1, &performance_group, "supersampling; 2x2 (extra) or 4x4 (extra4) respectively" };
+    lockable_bool novisapprox { "novisapprox", false, &debug_group, "disable approximate visibility culling of lights" };
+    static lockable_func lit { "lit", [](){ write_litfile |= lightfile::external; }, &output_group, "write .lit file" };
+    static lockable_func lit2 { "lit2", [](){ write_litfile = lightfile::lit2; }, &experimental_group, "write .lit2 file" };
+    static lockable_func bspxlit { "bspxlit", [](){ write_litfile |= lightfile::bspx; }, &experimental_group, "writes rgb data into the bsp itself" };
+    static lockable_func lux { "lux", [](){ write_luxfile |= lightfile::external; }, &experimental_group, "write .lux file" };
+    static lockable_func bspxlux { "bspxlux", [](){ write_luxfile |= lightfile::bspx; }, &experimental_group, "writes lux data into the bsp itself" };
+    static lockable_func bspxonly { "bspxonly", [](){
+        write_litfile = lightfile::bspx;
+        write_luxfile = lightfile::bspx;
+        novanilla.setValueLocked(true);
+    }, &experimental_group, "writes both rgb and directions data *only* into the bsp itself" };
+    static lockable_func bspx { "bspx", [](){
+        write_litfile = lightfile::bspx;
+        write_luxfile = lightfile::bspx;
+    }, &experimental_group, "writes both rgb and directions data into the bsp itself" };
+    lockable_bool litonly { "litonly", false, &output_group, "only write .lit file, don't modify BSP" };
+    lockable_bool nolights { "nolights", false, &output_group, "ignore light entities (only sunlight/minlight)" };
+    
+    static void CheckNoDebugModeSet()
+    {
+        if (debugmode != debugmodes::none) {
+            Error("Only one debug mode is allowed at a time");
+        }
+    }
+
+    static lockable_func dirtdebug { strings { "dirtdebug", "debugdirt" }, [](){
+        CheckNoDebugModeSet();
+        debugmode = debugmodes::dirt;
+    }, &debug_group, "only save the AO values to the lightmap" };
+    
+    static lockable_func bouncedebug { "bouncedebug", [](){
+        CheckNoDebugModeSet();
+        debugmode = debugmodes::bounce;
+    }, &debug_group, "only save bounced lighting to the lightmap" };
+    
+    static lockable_func bouncelightsdebug { "bouncelightsdebug", [](){
+        CheckNoDebugModeSet();
+        debugmode = debugmodes::bouncelights;
+    }, &debug_group, "only save bounced emitters lighting to the lightmap" };
+    
+    static lockable_func phongdebug { "phongdebug", [](){
+        CheckNoDebugModeSet();
+        debugmode = debugmodes::phong;
+    }, &debug_group, "only save phong normals to the lightmap" };
+
+    static lockable_func phongdebug_obj { "phongdebug_obj", [](){
+        CheckNoDebugModeSet();
+        debugmode = debugmodes::phong_obj;
+    }, &debug_group, "save map as .obj with phonged normals" };
+
+    static lockable_func debugoccluded { "debugoccluded", [](){
+        CheckNoDebugModeSet();
+        debugmode = debugmodes::debugoccluded;
+    }, &debug_group, "save light occlusion data to lightmap" };
+
+    static lockable_func debugneighbours { "debugneighbours", [](){
+        CheckNoDebugModeSet();
+        debugmode = debugmodes::debugneighbours;
+    }, &debug_group, "save neighboring faces data to lightmap (requires -debugface)" };
+
+    inline void registerSettings()
+    {
+        // add command line keys
+        globalSettings.addSettings({
+            &surflight_dump, &surflight_subdivide, &onlyents, &write_normals, &novanilla, &gate, &sunsamples,
+            &arghradcompat, &nolighting, &debugface, &debugvert, &highlightseams, &soft, &radlights, &lmscale,
+            &extra, &novisapprox, &lit, &lit2, &bspxlit, &lux, &bspxlux, &bspxonly, &bspx, &litonly, &nolights,
+            &dirtdebug, &bouncedebug, &bouncelightsdebug, &phongdebug, &phongdebug_obj, &debugoccluded, &debugneighbours
+        });
+
+        // add worldspawn keys
+        globalSettings.addSettings(cfg_static.settings.begin(), cfg_static.settings.end());
+    }
+
+    inline void compileSettings(int argc, const char **argv)
+    {
+        globalSettings.programName = fs::path(argv[0]).stem().string();
+        globalSettings.remainderName = "mapname.bsp";
+        registerSettings();
+
+        auto remainder = globalSettings.parse(token_parser_t(argc - 1, argv + 1));
+
+        if (remainder.size() <= 0 || remainder.size() > 1) {
+            globalSettings.printHelp();
+        }
+
+        sourceMap = remainder[0];
+    
+        initGlobalSettings();
+
+        if (gate.value() > 1) {
+            LogPrint("WARNING: -gate value greater than 1 may cause artifacts\n");
+        }
+        
+        if (radlights.isChanged()) {
+            if (!ParseLightsFile(radlights.value())) {
+                LogPrint("Unable to read surfacelights file {}\n", radlights.value());
+            }
+        }
+
+        if (soft.value() == -1) {
+            switch (extra.value()) {
+                case 2: soft.setValueLocked(1); break;
+                case 4: soft.setValueLocked(2); break;
+                default: soft.setValueLocked(0); break;
+            }
+        }
+
+        if (debugmode != debugmodes::none) {
+            write_litfile |= lightfile::external;
+        }
+
+        if (litonly.value()) {
+            write_litfile |= lightfile::external;
+        }
+
+        if (write_litfile == lightfile::lit2)
+            LogPrint("generating lit2 output only.\n");
+        else {
+            if (write_litfile & lightfile::external)
+                LogPrint(".lit colored light output requested on command line.\n");
+            if (write_litfile & lightfile::bspx)
+                LogPrint("BSPX colored light output requested on command line.\n");
+            if (write_luxfile & lightfile::external)
+                LogPrint(".lux light directions output requested on command line.\n");
+            if (write_luxfile & lightfile::bspx)
+                LogPrint("BSPX light directions output requested on command line.\n");
+        }
+
+        if (debugmode == debugmodes::dirt) {
+            cfg_static.globalDirt.setValueLocked(true);
+        } else if (debugmode == debugmodes::bounce || debugmode == debugmodes::bouncelights) {
+            cfg_static.bounce.setValueLocked(true);
+        } else if (debugmode == debugmodes::debugneighbours && !debugface.isChanged()) {
+            FError("-debugneighbours without -debugface specified\n");
+        }
+    }
 }
 
 void SetGlobalSetting(std::string name, std::string value, bool cmdline)
@@ -147,27 +380,15 @@ void FixupGlobalSettings()
     // We can't just default "minlight_dirt" to "1" because that would enable
     // dirtmapping by default.
 
-    if (cfg_static.globalDirt.boolValue()) {
+    if (cfg_static.globalDirt.value()) {
         if (!cfg_static.minlightDirt.isChanged()) {
-            cfg_static.minlightDirt.setBoolValue(true);
+            cfg_static.minlightDirt.setValue(true);
         }
         if (!cfg_static.sunlight_dirt.isChanged()) {
-            cfg_static.sunlight_dirt.setNumberValue(1);
+            cfg_static.sunlight_dirt.setValue(1);
         }
         if (!cfg_static.sunlight2_dirt.isChanged()) {
-            cfg_static.sunlight2_dirt.setNumberValue(1);
-        }
-    }
-}
-
-static void PrintOptionsSummary(void)
-{
-    LogPrint("--- OptionsSummary ---\n");
-
-    for (auto setting : cfg_static.settings) {
-        if (setting->isChanged()) {
-            LogPrint("    \"{}\" was set to \"{}\" from {}\n", setting->primaryName(), setting->stringValue(),
-                setting->sourceString());
+            cfg_static.sunlight2_dirt.setValue(1);
         }
     }
 }
@@ -288,7 +509,7 @@ static void *LightThread(void *arg)
 
         if (!faces_sup)
             LightFace(bsp, f, nullptr, cfg_static);
-        else if (scaledonly) {
+        else if (settings::novanilla.value()) {
             f->lightofs = -1;
             f->styles[0] = 255;
             LightFace(bsp, f, faces_sup + facenum, cfg_static);
@@ -306,7 +527,7 @@ static void *LightThread(void *arg)
     return NULL;
 }
 
-static void FindModelInfo(const mbsp_t *bsp, const char *lmscaleoverride)
+static void FindModelInfo(const mbsp_t *bsp)
 {
     Q_assert(modelinfo.size() == 0);
     Q_assert(tracelist.size() == 0);
@@ -318,15 +539,16 @@ static void FindModelInfo(const mbsp_t *bsp, const char *lmscaleoverride)
         FError("Corrupt .BSP: bsp->nummodels is 0!");
     }
 
-    if (lmscaleoverride)
-        SetWorldKeyValue("_lightmap_scale", lmscaleoverride);
+    if (settings::lmscale.isChanged()) {
+        SetWorldKeyValue("_lightmap_scale", settings::lmscale.stringValue());
+    }
 
     float lightmapscale = atoi(WorldValueForKey("_lightmap_scale").c_str());
     if (!lightmapscale)
         lightmapscale = 16; /* the default */
     if (lightmapscale <= 0)
         FError("lightmap scale is 0 or negative\n");
-    if (lmscaleoverride || lightmapscale != 16)
+    if (settings::lmscale.isChanged() || lightmapscale != 16)
         LogPrint("Forcing lightmap scale of {}qu\n", lightmapscale);
     /*I'm going to do this check in the hopes that there's a benefit to cheaper scaling in engines (especially software
      * ones that might be able to just do some mip hacks). This tool doesn't really care.*/
@@ -342,7 +564,7 @@ static void FindModelInfo(const mbsp_t *bsp, const char *lmscaleoverride)
 
     /* The world always casts shadows */
     modelinfo_t *world = new modelinfo_t{bsp, &bsp->dmodels[0], lightmapscale};
-    world->shadow.setNumberValue(1.0f); /* world always casts shadows */
+    world->shadow.setValue(1.0f); /* world always casts shadows */
     world->phong_angle = cfg_static.phongangle;
     modelinfo.push_back(world);
     tracelist.push_back(world);
@@ -363,7 +585,7 @@ static void FindModelInfo(const mbsp_t *bsp, const char *lmscaleoverride)
 
         /* Check if this model will cast shadows (shadow => shadowself) */
         if (info->switchableshadow.boolValue()) {
-            Q_assert(info->switchshadstyle.numberValue() != 0);
+            Q_assert(info->switchshadstyle.value() != 0);
             switchableshadowlist.push_back(info);
         } else if (info->shadow.boolValue()) {
             tracelist.push_back(info);
@@ -421,7 +643,7 @@ static void LightWorld(bspdata_t *bspdata, bool forcedscale)
 
     auto lmshift_lump = bspdata->bspx.entries.find("LMSHIFT");
 
-    if (lmshift_lump == bspdata->bspx.entries.end() && write_litfile != ~0)
+    if (lmshift_lump == bspdata->bspx.entries.end() && write_litfile != lightfile::lit2)
         faces_sup = nullptr; // no scales, no lit2
     else { // we have scales or lit2 output. yay...
         faces_sup = new facesup_t[bsp.dfaces.size()]{};
@@ -438,11 +660,11 @@ static void LightWorld(bspdata_t *bspdata, bool forcedscale)
     CalculateVertexNormals(&bsp);
 
     const bool bouncerequired =
-        cfg_static.bounce.boolValue() &&
-        (debugmode == debugmode_none || debugmode == debugmode_bounce || debugmode == debugmode_bouncelights); // mxd
+        cfg_static.bounce.value() &&
+        (debugmode == debugmodes::none || debugmode == debugmodes::bounce || debugmode == debugmodes::bouncelights); // mxd
     const bool isQuake2map = bsp.loadversion->game->id == GAME_QUAKE_II; // mxd
 
-    if ((bouncerequired || isQuake2map) && !skiplighting) {
+    if ((bouncerequired || isQuake2map) && !settings::nolighting.value()) {
         if (isQuake2map)
             MakeSurfaceLights(cfg_static, &bsp);
         if (bouncerequired)
@@ -460,7 +682,7 @@ static void LightWorld(bspdata_t *bspdata, bool forcedscale)
     RunThreadsOn(0, bsp.dfaces.size(), LightThread, &bsp);
 #endif
 
-    if ((bouncerequired || isQuake2map) && !skiplighting) { // mxd. Print some extra stats...
+    if ((bouncerequired || isQuake2map) && !settings::nolighting.value()) { // mxd. Print some extra stats...
         LogPrint("Indirect lights: {} bounce lights, {} surface lights ({} light points) in use.\n",
             BounceLights().size(), SurfaceLights().size(), TotalSurfacelightPoints());
     }
@@ -468,7 +690,7 @@ static void LightWorld(bspdata_t *bspdata, bool forcedscale)
     LogPrint("Lighting Completed.\n\n");
 
     // Transfer greyscale lightmap (or color lightmap for Q2/HL) to the bsp and update lightdatasize
-    if (!litonly) {
+    if (!settings::litonly.value()) {
         if (bsp.loadversion->game->has_rgb_lightmap) {
             bsp.dlightdata.resize(lit_file_p);
             memcpy(bsp.dlightdata.data(), lit_filebase, bsp.dlightdata.size());
@@ -613,13 +835,6 @@ static void ExportObj(const std::filesystem::path &filename, const mbsp_t *bsp)
 
 // obj
 
-static void CheckNoDebugModeSet()
-{
-    if (debugmode != debugmode_none) {
-        Error("Only one debug mode is allowed at a time");
-    }
-}
-
 // returns the face with a centroid nearest the given point.
 static const mface_t *Face_NearestCentroid(const mbsp_t *bsp, const qvec3f &point)
 {
@@ -645,10 +860,10 @@ static const mface_t *Face_NearestCentroid(const mbsp_t *bsp, const qvec3f &poin
 
 static void FindDebugFace(const mbsp_t *bsp)
 {
-    if (!dump_face)
+    if (!settings::debugface.isChanged())
         return;
 
-    const mface_t *f = Face_NearestCentroid(bsp, dump_face_point);
+    const mface_t *f = Face_NearestCentroid(bsp, settings::debugface.value());
     if (f == NULL)
         FError("f == NULL\n");
 
@@ -664,11 +879,10 @@ static void FindDebugFace(const mbsp_t *bsp)
 }
 
 // returns the vert nearest the given point
-// FIXME: qv distance double
-static int Vertex_NearestPoint(const mbsp_t *bsp, const qvec3f &point)
+static int Vertex_NearestPoint(const mbsp_t *bsp, const qvec3d &point)
 {
     int nearest_vert = -1;
-    float nearest_dist = std::numeric_limits<float>::infinity();
+    float nearest_dist = std::numeric_limits<vec_t>::infinity();
 
     for (int i = 0; i < bsp->dvertexes.size(); i++) {
         const qvec3f &vertex = bsp->dvertexes[i];
@@ -686,10 +900,10 @@ static int Vertex_NearestPoint(const mbsp_t *bsp, const qvec3f &point)
 
 static void FindDebugVert(const mbsp_t *bsp)
 {
-    if (!dump_vert)
+    if (!settings::debugvert.isChanged())
         return;
 
-    int v = Vertex_NearestPoint(bsp, dump_vert_point);
+    int v = Vertex_NearestPoint(bsp, settings::debugvert.value());
 
     FLogPrint("dumping vert {} at {}\n", v, bsp->dvertexes[v]);
 
@@ -699,12 +913,12 @@ static void FindDebugVert(const mbsp_t *bsp)
 static void SetLitNeeded()
 {
     if (!write_litfile) {
-        if (scaledonly) {
-            write_litfile = 2;
+        if (settings::novanilla.value()) {
+            write_litfile = lightfile::bspx;
             LogPrint("Colored light entities/settings detected: "
                      "bspxlit output enabled.\n");
         } else {
-            write_litfile = 1;
+            write_litfile = lightfile::external;
             LogPrint("Colored light entities/settings detected: "
                      ".lit output enabled.\n");
         }
@@ -715,7 +929,7 @@ static void CheckLitNeeded(const globalconfig_t &cfg)
 {
     // check lights
     for (const auto &light : GetLights()) {
-        if (!qv::epsilonEqual(vec3_white, light.color.vec3Value(), EQUAL_EPSILON) ||
+        if (!qv::epsilonEqual(vec3_white, light.color.value(), EQUAL_EPSILON) ||
             light.projectedmip != nullptr) { // mxd. Projected mips could also use .lit output
             SetLitNeeded();
             return;
@@ -723,12 +937,12 @@ static void CheckLitNeeded(const globalconfig_t &cfg)
     }
 
     // check global settings
-    if (cfg.bouncecolorscale.numberValue() != 0 ||
-        !qv::epsilonEqual(cfg.minlight_color.vec3Value(), vec3_white, EQUAL_EPSILON) ||
-        !qv::epsilonEqual(cfg.sunlight_color.vec3Value(), vec3_white, EQUAL_EPSILON) ||
-        !qv::epsilonEqual(cfg.sun2_color.vec3Value(), vec3_white, EQUAL_EPSILON) ||
-        !qv::epsilonEqual(cfg.sunlight2_color.vec3Value(), vec3_white, EQUAL_EPSILON) ||
-        !qv::epsilonEqual(cfg.sunlight3_color.vec3Value(), vec3_white, EQUAL_EPSILON)) {
+    if (cfg.bouncecolorscale.value() != 0 ||
+        !qv::epsilonEqual(cfg.minlight_color.value(), vec3_white, EQUAL_EPSILON) ||
+        !qv::epsilonEqual(cfg.sunlight_color.value(), vec3_white, EQUAL_EPSILON) ||
+        !qv::epsilonEqual(cfg.sun2_color.value(), vec3_white, EQUAL_EPSILON) ||
+        !qv::epsilonEqual(cfg.sunlight2_color.value(), vec3_white, EQUAL_EPSILON) ||
+        !qv::epsilonEqual(cfg.sunlight3_color.value(), vec3_white, EQUAL_EPSILON)) {
         SetLitNeeded();
         return;
     }
@@ -763,162 +977,6 @@ static void PrintLights(void)
     for (const auto &light : GetLights()) {
         PrintLight(light);
     }
-}
-#endif
-
-static void PrintUsage()
-{
-    printf("usage: light [options] mapname.bsp\n"
-           "\n"
-           "Performance options:\n"
-           "  -threads n          set the number of threads\n"
-           "  -extra              2x supersampling\n"
-           "  -extra4             4x supersampling, slowest, use for final compile\n"
-           "  -gate n             cutoff lights at this brightness level\n"
-           "  -sunsamples n       set samples for _sunlight2, default 64\n"
-           "  -surflight_subdivide  surface light subdivision size\n"
-           "\n"
-           "Output format options:\n"
-           "  -lit                write .lit file\n"
-           "  -onlyents           only update entities\n"
-           "\n"
-           "Postprocessing options:\n"
-           "  -soft [n]           blurs the lightmap, n=blur radius in samples\n"
-           "\n"
-           "Debug modes:\n"
-           "  -dirtdebug          only save the AO values to the lightmap\n"
-           "  -phongdebug         only save the normals to the lightmap\n"
-           "  -bouncedebug        only save bounced lighting to the lightmap\n"
-           "  -surflight_dump     dump surface lights to a .map file\n"
-           "  -novisapprox        disable approximate visibility culling of lights\n"
-           "\n"
-           "Experimental options:\n"
-           "  -lit2               write .lit2 file\n"
-           "  -lmscale n          change lightmap scale, vanilla engines only allow 16\n"
-           "  -lux                write .lux file\n"
-           "  -bspxlit            writes rgb data into the bsp itself\n"
-           "  -bspx               writes both rgb and directions data into the bsp itself\n"
-           "  -novanilla          implies -bspxlit. don't write vanilla lighting\n"
-           "  -radlights filename.rad loads a <surfacename> <r> <g> <b> <intensity> file\n"
-           "  -wrnormals          write normals into the bsp itself\n");
-
-    printf("\n");
-    printf("Overridable worldspawn keys:\n");
-
-    for (auto setting : cfg_static.settings) {
-        printf("  ");
-        for (int i = 0; i < setting->names().size(); i++) {
-            const auto &name = setting->names().at(i);
-
-            fmt::print("-{} {} ", name, setting->format());
-
-            if ((i + 1) < setting->names().size()) {
-                printf("| ");
-            }
-        }
-        printf("\n");
-    }
-}
-
-static bool ParseVec3Optional(qvec3d &vec3_out, int *i_inout, int argc, const char **argv)
-{
-    if ((*i_inout + 3) < argc) {
-        const int start = (*i_inout + 1);
-        const int end = (*i_inout + 3);
-
-        // validate that there are 3 numbers
-        for (int j = start; j <= end; j++) {
-            if (argv[j][0] == '-' && isdigit(argv[j][1])) {
-                continue; // accept '-' followed by a digit for negative numbers
-            }
-
-            // otherwise, reject if the first character is not a digit
-            if (!isdigit(argv[j][0])) {
-                return false;
-            }
-        }
-
-        vec3_out[0] = atof(argv[++(*i_inout)]);
-        vec3_out[1] = atof(argv[++(*i_inout)]);
-        vec3_out[2] = atof(argv[++(*i_inout)]);
-        return true;
-    } else {
-        return false;
-    }
-}
-
-static bool ParseVecOptional(vec_t *result, int *i_inout, int argc, const char **argv)
-{
-    if ((*i_inout + 1) < argc) {
-        if (!isdigit(argv[*i_inout + 1][0])) {
-            return false;
-        }
-        *result = atof(argv[++(*i_inout)]);
-        return true;
-    } else {
-        return false;
-    }
-}
-
-static bool ParseIntOptional(int *result, int *i_inout, int argc, const char **argv)
-{
-    if ((*i_inout + 1) < argc) {
-        if (!isdigit(argv[*i_inout + 1][0])) {
-            return false;
-        }
-        *result = atoi(argv[++(*i_inout)]);
-        return true;
-    } else {
-        return false;
-    }
-}
-
-#if 0
-static const char *ParseStringOptional(int *i_inout, int argc, const char **argv)
-{
-    if ((*i_inout + 1) < argc) {
-        return argv[++(*i_inout)];
-    } else {
-        return NULL;
-    }
-}
-#endif
-
-static void ParseVec3(qvec3d &vec3_out, int *i_inout, int argc, const char **argv)
-{
-    if (!ParseVec3Optional(vec3_out, i_inout, argc, argv)) {
-        Error("{} requires 3 numberic arguments\n", argv[*i_inout]);
-    }
-}
-
-static vec_t ParseVec(int *i_inout, int argc, const char **argv)
-{
-    vec_t result = 0;
-    if (!ParseVecOptional(&result, i_inout, argc, argv)) {
-        Error("{} requires 1 numeric argument\n", argv[*i_inout]);
-        return 0;
-    }
-    return result;
-}
-
-static int ParseInt(int *i_inout, int argc, const char **argv)
-{
-    int result = 0;
-    if (!ParseIntOptional(&result, i_inout, argc, argv)) {
-        Error("{} requires 1 integer argument\n", argv[*i_inout]);
-        return 0;
-    }
-    return result;
-}
-
-#if 0
-static const char *ParseString(int *i_inout, int argc, const char **argv)
-{
-    const char *result = NULL;
-    if (!(result = ParseStringOptional(i_inout, argc, argv))) {
-        Error("{} requires 1 string argument\n", argv[*i_inout]);
-    }
-    return result;
 }
 #endif
 
@@ -973,20 +1031,6 @@ static inline void WriteNormals(const mbsp_t &bsp, bspdata_t &bspdata)
 
     for (auto &face : bsp.dfaces) {
         auto &cache = FaceCacheForFNum(&face - bsp.dfaces.data());
-        /*bool keep = true;
-        
-        for (size_t i = 0; i < cache.points().size(); i++) {
-            auto &pt = cache.points()[i];
-
-            if (qv::distance(pt, { -208, 6, 21 }) > 256) {
-                keep = false;
-                break;
-            }
-        }
-
-        if (!keep) {
-            continue;
-        }*/
 
         for (size_t i = 0; i < cache.points().size(); i++) {
             auto &pt = cache.points()[i];
@@ -1017,221 +1061,31 @@ static inline void WriteNormals(const mbsp_t &bsp, bspdata_t &bspdata)
 int light_main(int argc, const char **argv)
 {
     bspdata_t bspdata;
-    int i;
-    const char *lmscaleoverride = NULL;
 
     InitLog("light.log");
     LogPrint("---- light / ericw-tools " stringify(ERICWTOOLS_VERSION) " ----\n");
 
+    settings::compileSettings(argc, argv);
+    
+    settings::globalSettings.printHelp();
+
     LowerProcessPriority();
-    numthreads = GetDefaultThreads();
 
     globalconfig_t &cfg = cfg_static;
 
-    for (i = 1; i < argc; i++) {
-        if (!strcmp(argv[i], "-threads")) {
-            numthreads = ParseInt(&i, argc, argv);
-        } else if (!strcmp(argv[i], "-extra")) {
-            oversample = 2;
-            LogPrint("extra 2x2 sampling enabled\n");
-        } else if (!strcmp(argv[i], "-extra4")) {
-            oversample = 4;
-            LogPrint("extra 4x4 sampling enabled\n");
-        } else if (!strcmp(argv[i], "-gate")) {
-            fadegate = ParseVec(&i, argc, argv);
-            if (fadegate > 1) {
-                LogPrint("WARNING: -gate value greater than 1 may cause artifacts\n");
-            }
-        } else if (!strcmp(argv[i], "-lit")) {
-            write_litfile |= 1;
-        } else if (!strcmp(argv[i], "-lit2")) {
-            write_litfile = ~0;
-        } else if (!strcmp(argv[i], "-lux")) {
-            write_luxfile |= 1;
-        } else if (!strcmp(argv[i], "-bspxlit")) {
-            write_litfile |= 2;
-        } else if (!strcmp(argv[i], "-bspxlux")) {
-            write_luxfile |= 2;
-        } else if (!strcmp(argv[i], "-bspxonly")) {
-            write_litfile = 2;
-            write_luxfile = 2;
-            scaledonly = true;
-        } else if (!strcmp(argv[i], "-bspx")) {
-            write_litfile |= 2;
-            write_luxfile |= 2;
-        } else if (!strcmp(argv[i], "-novanilla")) {
-            scaledonly = true;
-        } else if (!strcmp(argv[i], "-radlights")) {
-            if (!ParseLightsFile(argv[++i]))
-                LogPrint("Unable to read surfacelights file {}\n", argv[i]);
-        } else if (!strcmp(argv[i], "-lmscale")) {
-            lmscaleoverride = argv[++i];
-        } else if (!strcmp(argv[i], "-soft")) {
-            if ((i + 1) < argc && isdigit(argv[i + 1][0]))
-                softsamples = ParseInt(&i, argc, argv);
-            else
-                softsamples = -1; /* auto, based on oversampling */
-        } else if (!strcmp(argv[i], "-dirtdebug") || !strcmp(argv[i], "-debugdirt")) {
-            CheckNoDebugModeSet();
-
-            cfg.globalDirt.setBoolValueLocked(true);
-            debugmode = debugmode_dirt;
-            LogPrint("Dirtmap debugging enabled\n");
-        } else if (!strcmp(argv[i], "-bouncedebug")) {
-            CheckNoDebugModeSet();
-            cfg.bounce.setBoolValueLocked(true);
-            debugmode = debugmode_bounce;
-            LogPrint("Bounce debugging mode enabled on command line\n");
-        } else if (!strcmp(argv[i], "-bouncelightsdebug")) {
-            CheckNoDebugModeSet();
-            cfg.bounce.setBoolValueLocked(true);
-            debugmode = debugmode_bouncelights;
-            LogPrint("Bounce emitters debugging mode enabled on command line\n");
-        } else if (!strcmp(argv[i], "-surflight_subdivide")) {
-            surflight_subdivide = ParseVec(&i, argc, argv);
-            surflight_subdivide = min(max(surflight_subdivide, 64.0f), 2048.0f);
-            LogPrint("Using surface light subdivision size of {}\n", surflight_subdivide);
-        } else if (!strcmp(argv[i], "-surflight_dump")) {
-            surflight_dump = true;
-        } else if (!strcmp(argv[i], "-sunsamples")) {
-            sunsamples = ParseInt(&i, argc, argv);
-            sunsamples = min(max(sunsamples, 8), 2048);
-            LogPrint("Using sunsamples of {}\n", sunsamples);
-        } else if (!strcmp(argv[i], "-onlyents")) {
-            onlyents = true;
-            LogPrint("Onlyents mode enabled\n");
-        } else if (!strcmp(argv[i], "-phongdebug")) {
-            CheckNoDebugModeSet();
-            debugmode = debugmode_phong;
-            write_litfile |= 1;
-            LogPrint("Phong shading debug mode enabled\n");
-        } else if (!strcmp(argv[i], "-phongdebug_obj")) {
-            CheckNoDebugModeSet();
-            debugmode = debugmode_phong_obj;
-            LogPrint("Phong shading debug mode (.obj export) enabled\n");
-        } else if (!strcmp(argv[i], "-novisapprox")) {
-            novisapprox = true;
-            LogPrint("Skipping approximate light visibility\n");
-        } else if (!strcmp(argv[i], "-nolights")) {
-            nolights = true;
-            LogPrint("Skipping all light entities (sunlight / minlight only)\n");
-        } else if (!strcmp(argv[i], "-debugface")) {
-            ParseVec3(dump_face_point, &i, argc, argv);
-            dump_face = true;
-        } else if (!strcmp(argv[i], "-debugvert")) {
-            ParseVec3(dump_vert_point, &i, argc, argv);
-            dump_vert = true;
-        } else if (!strcmp(argv[i], "-debugoccluded")) {
-            CheckNoDebugModeSet();
-            debugmode = debugmode_debugoccluded;
-        } else if (!strcmp(argv[i], "-debugneighbours")) {
-            ParseVec3(dump_face_point, &i, argc, argv);
-            dump_face = true;
-
-            CheckNoDebugModeSet();
-            debugmode = debugmode_debugneighbours;
-        } else if (!strcmp(argv[i], "-highlightseams")) {
-            LogPrint("Highlighting lightmap seams\n");
-            debug_highlightseams = true;
-        } else if (!strcmp(argv[i], "-arghradcompat")) { // mxd
-            LogPrint("Arghrad entity keys conversion enabled\n");
-            arghradcompat = true;
-        } else if (!strcmp(argv[i], "-litonly")) {
-            LogPrint("-litonly specified; .bsp file will not be modified\n");
-            litonly = true;
-            write_litfile |= 1;
-        } else if (!strcmp(argv[i], "-nolighting")) {
-            LogPrint("-nolighting specified; .bsp file will not calculate lightmap data\n");
-            skiplighting = true;
-        } else if (!strcmp(argv[i], "-wrnormals")) {
-            write_normals = true;
-        } else if (!strcmp(argv[i], "-verbose") || !strcmp(argv[i], "-v")) { // Quark always passes -v
-            log_mask |= 1 << LOG_VERBOSE;
-        } else if (!strcmp(argv[i], "-help")) {
-            PrintUsage();
-            exit(0);
-        } else if (argv[i][0] == '-') {
-            // hand over to the settings system
-            std::string settingname{&argv[i][1]};
-            settings::lockable_base *setting = FindSetting(settingname);
-
-            if (setting == nullptr) {
-                Error("Unknown option \"-{}\"", settingname);
-                PrintUsage();
-            }
-            /*
-            if (lockable_bool_t *boolsetting = dynamic_cast<lockable_bool_t *>(setting)) {
-                vec_t v;
-                if (ParseVecOptional(&v, &i, argc, argv)) {
-                    boolsetting->setStringValue(std::to_string(v), true);
-                } else {
-                    boolsetting->setBoolValueLocked(true);
-                }
-            } else if (lockable_vec_t *vecsetting = dynamic_cast<lockable_vec_t *>(setting)) {
-                vecsetting->setFloatValueLocked(ParseVec(&i, argc, argv));
-            } else if (lockable_vec3_t *vec3setting = dynamic_cast<lockable_vec3_t *>(setting)) {
-                qvec3d temp;
-                ParseVec3(temp, &i, argc, argv);
-                vec3setting->setVec3ValueLocked(temp);
-            } else {
-                Error("Internal error");
-            }
-            */
-        } else {
-            break;
-        }
-    }
-
-    if (i != argc - 1) {
-        PrintUsage();
-        exit(1);
-    }
-
-    if (debugmode != debugmode_none) {
-        write_litfile |= 1;
-    }
-
-    if (numthreads > 1)
-        LogPrint("running with {} threads\n", numthreads);
-
-    if (write_litfile == ~0)
-        LogPrint("generating lit2 output only.\n");
-    else {
-        if (write_litfile & 1)
-            LogPrint(".lit colored light output requested on command line.\n");
-        if (write_litfile & 2)
-            LogPrint("BSPX colored light output requested on command line.\n");
-        if (write_luxfile & 1)
-            LogPrint(".lux light directions output requested on command line.\n");
-        if (write_luxfile & 2)
-            LogPrint("BSPX light directions output requested on command line.\n");
-    }
-
-    if (softsamples == -1) {
-        switch (oversample) {
-            case 2: softsamples = 1; break;
-            case 4: softsamples = 2; break;
-            default: softsamples = 0; break;
-        }
-    }
-
     auto start = I_FloatTime();
-
-    std::filesystem::path source(argv[i]);
-    mapfilename = source;
+    fs::path source = settings::sourceMap;
 
     // delete previous litfile
-    if (!onlyents) {
+    if (!settings::onlyents.value()) {
         source.replace_extension("lit");
         remove(source);
     }
 
-    {
-        source.replace_extension("rad");
-        if (source != "lights.rad")
-            ParseLightsFile("lights.rad"); // generic/default name
-        ParseLightsFile(source); // map-specific file name
-    }
+    source.replace_extension("rad");
+    if (source != "lights.rad")
+        ParseLightsFile("lights.rad"); // generic/default name
+    ParseLightsFile(source); // map-specific file name
 
     source.replace_extension("bsp");
     LoadBSPFile(source, &bspdata);
@@ -1253,16 +1107,16 @@ int light_main(int argc, const char **argv)
     LoadExtendedTexinfoFlags(source, &bsp);
     LoadEntities(cfg, &bsp);
 
-    PrintOptionsSummary();
+    settings::globalSettings.printSummary();
 
-    FindModelInfo(&bsp, lmscaleoverride);
+    FindModelInfo(&bsp);
 
     FindDebugFace(&bsp);
     FindDebugVert(&bsp);
 
     MakeTnodes(&bsp);
 
-    if (debugmode == debugmode_phong_obj) {
+    if (debugmode == debugmodes::phong_obj) {
         CalculateVertexNormals(&bsp);
         source.replace_extension("obj");
         ExportObj(source, &bsp);
@@ -1275,18 +1129,18 @@ int light_main(int argc, const char **argv)
 
     // PrintLights();
 
-    if (!onlyents) {
+    if (!settings::onlyents.value()) {
         if (!bspdata.loadversion->game->has_rgb_lightmap) {
             CheckLitNeeded(cfg);
         }
         SetupDirt(cfg);
 
-        LightWorld(&bspdata, !!lmscaleoverride);
+        LightWorld(&bspdata, settings::lmscale.isChanged());
 
         // invalidate normals
         bspdata.bspx.entries.erase("FACENORMALS");
 
-        if (write_normals) {
+        if (settings::write_normals.value()) {
             WriteNormals(bsp, bspdata);
         }
 
@@ -1294,24 +1148,24 @@ int light_main(int argc, const char **argv)
         bspdata.bspx.entries.erase("RGBLIGHTING");
         bspdata.bspx.entries.erase("LIGHTINGDIR");
 
-        if (write_litfile == ~0) {
+        if (write_litfile == lightfile::lit2) {
             WriteLitFile(&bsp, faces_sup, source, 2);
             return 0; // run away before any files are written
         } else {
             /*fixme: add a new per-surface offset+lmscale lump for compat/versitility?*/
-            if (write_litfile & 1)
+            if (write_litfile & lightfile::external)
                 WriteLitFile(&bsp, faces_sup, source, LIT_VERSION);
-            if (write_litfile & 2)
+            if (write_litfile & lightfile::bspx)
                 bspdata.bspx.transfer("RGBLIGHTING", lit_filebase, bsp.dlightdata.size() * 3);
-            if (write_luxfile & 1)
+            if (write_luxfile & lightfile::external)
                 WriteLuxFile(&bsp, source, LIT_VERSION);
-            if (write_luxfile & 2)
+            if (write_luxfile & lightfile::bspx)
                 bspdata.bspx.transfer("LIGHTINGDIR", lux_filebase, bsp.dlightdata.size() * 3);
         }
     }
 
     /* -novanilla + internal lighting = no grey lightmap */
-    if (scaledonly && (write_litfile & 2))
+    if (settings::novanilla.value() && (write_litfile & lightfile::bspx))
         bsp.dlightdata.clear();
 
 #if 0
@@ -1322,7 +1176,7 @@ int light_main(int argc, const char **argv)
     /* Convert data format back if necessary */
     ConvertBSPFormat(&bspdata, bspdata.loadversion);
 
-    if (!litonly) {
+    if (!settings::litonly.value()) {
         WriteBSPFile(source, &bspdata);
     }
 

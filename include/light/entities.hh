@@ -108,9 +108,9 @@ public:
 
     const char *classname() const;
 
-    const light_formula_t &getFormula() const { return formula.numberValue(); }
+    const light_formula_t &getFormula() const { return formula.value(); }
 
-    void initAABB() { bounds = origin.vec3Value(); }
+    void initAABB() { bounds = origin.value(); }
 
     void expandAABB(const qvec3d &pt) { bounds += pt; }
 };

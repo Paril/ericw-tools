@@ -243,10 +243,10 @@ static void WriteLeakTrail(std::ofstream &leakfile, qvec3d point1, const qvec3d 
     qvec3d vector = point2 - point1;
     vec_t dist = qv::normalizeInPlace(vector);
 
-    while (dist > settings::leakdist.numberValue()) {
+    while (dist > settings::leakdist.value()) {
         fmt::print(leakfile, "{}\n", point1);
-        point1 += vector * settings::leakdist.numberValue();
-        dist -= settings::leakdist.numberValue();
+        point1 += vector * settings::leakdist.value();
+        dist -= settings::leakdist.value();
     }
 }
 
@@ -488,7 +488,7 @@ bool FillOutside(node_t *node, const int hullnum)
         options.szBSPName.replace_extension("prt");
         remove(options.szBSPName);
 
-        if (settings::leaktest.boolValue()) {
+        if (settings::leaktest.value()) {
             LogPrint("Aborting because -leaktest was used.\n");
             exit(1);
         }

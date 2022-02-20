@@ -853,13 +853,9 @@ int main(int argc, char **argv)
     LogPrint("---- vis / ericw-tools " stringify(ERICWTOOLS_VERSION) " ----\n");
 
     LowerProcessPriority();
-    numthreads = GetDefaultThreads();
 
     for (i = 1; i < argc; i++) {
-        if (!strcmp(argv[i], "-threads")) {
-            numthreads = atoi(argv[i + 1]);
-            i++;
-        } else if (!strcmp(argv[i], "-fast")) {
+        if (!strcmp(argv[i], "-fast")) {
             LogPrint("fastvis = true\n");
             fastvis = true;
         } else if (!strcmp(argv[i], "-level")) {
@@ -908,7 +904,6 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    LogPrint("running with {} threads\n", numthreads);
     LogPrint("testlevel = {}\n", testlevel);
 
     stateinterval = std::chrono::minutes(5); /* 5 minutes */

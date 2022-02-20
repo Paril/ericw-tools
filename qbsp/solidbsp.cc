@@ -468,13 +468,13 @@ static std::vector<surface_t>::iterator SelectPartition(std::vector<surface_t> &
     bool largenode = false;
 
     // decide if we should switch to the midsplit method
-    if (settings::midsplitsurffraction.numberValue() != 0.0) {
+    if (settings::midsplitsurffraction.value() != 0.0) {
         // new way (opt-in)
-        largenode = (fractionOfMap > settings::midsplitsurffraction.numberValue());
+        largenode = (fractionOfMap > settings::midsplitsurffraction.value());
     } else {
         // old way (ericw-tools 0.15.2+)
-        if (settings::maxnodesize.numberValue() >= 64) {
-            const vec_t maxnodesize = settings::maxnodesize.numberValue() - ON_EPSILON;
+        if (settings::maxnodesize.value() >= 64) {
+            const vec_t maxnodesize = settings::maxnodesize.value() - ON_EPSILON;
 
             largenode = (bounds.maxs()[0] - bounds.mins()[0]) > maxnodesize ||
                         (bounds.maxs()[1] - bounds.mins()[1]) > maxnodesize ||
@@ -688,7 +688,7 @@ Called in parallel.
 static std::list<face_t *> LinkNodeFaces(surface_t &surface)
 {
     // subdivide large faces if requested
-    if (settings::subdivide.numberValue()) {
+    if (settings::subdivide.value()) {
         for (auto it = surface.faces.begin(); it != surface.faces.end(); it++) {
             it = SubdivideFace(it, surface.faces);
         }
