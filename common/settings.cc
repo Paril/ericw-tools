@@ -36,7 +36,7 @@ namespace settings
 
 	[[noreturn]] void dict::printHelp()
 	{
-		fmt::print("usage: {} [-help/-h/-?] [-options] {}\n\n", programName, remainderName);
+		fmt::print("{}usage: {} [-help/-h/-?] [-options] {}\n\n", usage, programName, remainderName);
 
 		for (auto grouped : grouped()) {
 			if (grouped.first) {
@@ -44,7 +44,7 @@ namespace settings
 			}
 
 			for (auto setting : grouped.second) {
-				size_t numPadding = max(static_cast<size_t>(0), 28 - (strlen(setting->primaryName()) + 4));
+				size_t numPadding = max(static_cast<size_t>(0), 28 - (setting->primaryName().size() + 4));
 				fmt::print("  -{} {:{}}{}\n", setting->primaryName(), setting->format(), numPadding, setting->getDescription());
 
 				for (int i = 1; i < setting->names().size(); i++) {
@@ -111,7 +111,7 @@ namespace settings
 			// name for error message below
 			std::string token = std::move(parser.token);
 
-			if (!setting->parse(parser, true)) {
+			if (!setting->parse(token, parser, true)) {
 				throw parse_exception(fmt::format("invalid value for option \"{}\"; should be in format {}", token, setting->format()));
 			}
 		}

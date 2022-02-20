@@ -468,13 +468,13 @@ static std::vector<surface_t>::iterator SelectPartition(std::vector<surface_t> &
     bool largenode = false;
 
     // decide if we should switch to the midsplit method
-    if (options.midsplitSurfFraction != 0.0) {
+    if (settings::midsplitsurffraction.numberValue() != 0.0) {
         // new way (opt-in)
-        largenode = (fractionOfMap > options.midsplitSurfFraction);
+        largenode = (fractionOfMap > settings::midsplitsurffraction.numberValue());
     } else {
         // old way (ericw-tools 0.15.2+)
-        if (options.maxNodeSize >= 64) {
-            const vec_t maxnodesize = options.maxNodeSize - ON_EPSILON;
+        if (settings::maxnodesize.numberValue() >= 64) {
+            const vec_t maxnodesize = settings::maxnodesize.numberValue() - ON_EPSILON;
 
             largenode = (bounds.maxs()[0] - bounds.mins()[0]) > maxnodesize ||
                         (bounds.maxs()[1] - bounds.mins()[1]) > maxnodesize ||

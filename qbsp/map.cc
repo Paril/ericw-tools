@@ -226,7 +226,7 @@ int FindMiptex(const char *name, std::optional<extended_texinfo_t> &extended_inf
 
 static bool IsSkipName(const char *name)
 {
-    if (options.fNoskip)
+    if (settings::noskip.boolValue())
         return false;
     if (!Q_strcasecmp(name, "skip"))
         return true;
@@ -252,11 +252,9 @@ static bool IsNoExpandName(const char *name)
 
 static bool IsSpecialName(const char *name)
 {
-    if (options.fSplitspecial)
-        return false;
-    if (name[0] == '*' && !options.fSplitturb)
+    if (name[0] == '*' && !settings::splitturb.boolValue())
         return true;
-    if (!Q_strncasecmp(name, "sky", 3) && !options.fSplitsky)
+    if (!Q_strncasecmp(name, "sky", 3) && !settings::splitsky.boolValue())
         return true;
     return false;
 }
@@ -468,7 +466,7 @@ static void TextureAxisFromPlane(const qbsp_plane_t &plane, qvec3d &xv, qvec3d &
 
     for (i = 0; i < 6; i++) {
         dot = qv::dot(plane.normal, baseaxis[i * 3]);
-        if (dot > best || (dot == best && !options.fOldaxis)) {
+        if (dot > best || (dot == best && !settings::oldaxis.boolValue())) {
             best = dot;
             bestaxis = i;
         }
@@ -1686,7 +1684,7 @@ static void TranslateMapFace(mapface_t *face, const qvec3d &offset)
 
 void ProcessExternalMapEntity(mapentity_t *entity)
 {
-    Q_assert(!options.fOnlyents);
+    Q_assert(!settings::onlyents.boolValue());
 
     const char *classname = ValueForKey(entity, "classname");
     if (Q_strcasecmp(classname, "misc_external_map"))
@@ -1744,7 +1742,7 @@ void ProcessExternalMapEntity(mapentity_t *entity)
 
 void ProcessAreaPortal(mapentity_t *entity)
 {
-    Q_assert(!options.fOnlyents);
+    Q_assert(!settings::onlyents.boolValue());
 
     const char *classname = ValueForKey(entity, "classname");
 
@@ -1900,7 +1898,7 @@ void LoadMapFile(void)
     LogPrint(LOG_STAT, "     {:8} texinfo\n", map.numtexinfo());
     LogPrint(LOG_STAT, "\n");
 
-    if (options.fTestExpand) {
+    if (settings::expand.boolValue()) {
         TestExpandBrushes(pWorldEnt());
     }
 }
@@ -2064,7 +2062,7 @@ void ConvertMapFile(void)
 
     std::string append;
 
-    switch (options.convertMapFormat) {
+    switch (settings::convertmapformat.enumValue()) {
         case conversion_t::quake: append = "-quake"; break;
         case conversion_t::quake2: append = "-quake2"; break;
         case conversion_t::valve: append = "-valve"; break;
@@ -2081,7 +2079,7 @@ void ConvertMapFile(void)
         FError("Couldn't open file\n");
 
     for (const mapentity_t &entity : map.entities) {
-        ConvertEntity(f, &entity, options.convertMapFormat);
+        ConvertEntity(f, &entity, settings::convertmapformat.enumValue());
     }
 
     LogPrint("Conversion saved to {}\n", filename);
@@ -2217,8 +2215,6 @@ inline vec_t GetBrushExtents(const mapbrush_t &hullbrush)
 
 void CalculateWorldExtent(void)
 {
-    LogPrint("Calculating world extents... ");
-
     std::atomic<vec_t> extents = -std::numeric_limits<vec_t>::infinity();
 
     tbb::parallel_for_each(map.brushes, [&](const mapbrush_t &brush) {
@@ -2235,8 +2231,7 @@ void CalculateWorldExtent(void)
         }
     }
 
-    options.worldExtent = (extents + hull_extents) * 2;
-    LogPrint("{} units\n", options.worldExtent);
+    settings::worldextent.setNumberValueLocked((extents + hull_extents) * 2);
 }
 
 /*

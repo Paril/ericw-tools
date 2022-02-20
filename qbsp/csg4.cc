@@ -332,7 +332,7 @@ static void SaveFacesToPlaneList(std::list<face_t *> facelist, bool mirror, std:
             // to force the right content type for the leaf, but we don't actually
             // want the face. So just set the texinfo to "skip" so it gets deleted.
             if ((face->contents[1].is_detail() || (face->contents[1].extended & CFLAGS_WAS_ILLUSIONARY)) ||
-                (options.fContentHack && face->contents[1].is_solid(options.target_game))) {
+                (settings::contenthack.boolValue() && face->contents[1].is_solid(options.target_game))) {
 
                 // if CFLAGS_BMODEL_MIRROR_INSIDE is set, never change to skip
                 if (!(face->contents[1].extended & CFLAGS_BMODEL_MIRROR_INSIDE)) {
@@ -622,7 +622,7 @@ std::vector<surface_t> CSGFaces(const mapentity_t *entity)
          * All of the faces left on the outside list are real surface faces
          * If the brush is non-solid, mirror faces for the inside view
          */
-        const bool mirror = options.fContentHack ? true : !brush.contents.is_solid(options.target_game);
+        const bool mirror = settings::contenthack.boolValue() ? true : !brush.contents.is_solid(options.target_game);
         SaveFacesToPlaneList(outside, mirror, planefaces);
     }
 

@@ -76,7 +76,7 @@ static bool PortalThru(const portal_t *p)
     // "options" isn't exposed there.
     if (options.target_game->id != GAME_QUAKE_II) {
         /* If water is transparent, liquids are like empty space */
-        if (options.fTranswater) {
+        if (settings::transwater.boolValue()) {
             if (contents0.is_liquid(options.target_game) && contents1.is_empty(options.target_game))
                 return true;
             if (contents1.is_liquid(options.target_game) && contents0.is_empty(options.target_game))
@@ -84,7 +84,7 @@ static bool PortalThru(const portal_t *p)
         }
 
         /* If sky is transparent, then sky is like empty space */
-        if (options.fTranssky) {
+        if (settings::transsky.boolValue()) {
             if (contents0.is_sky(options.target_game) && contents1.is_empty(options.target_game))
                 return true;
             if (contents0.is_empty(options.target_game) && contents1.is_sky(options.target_game))
@@ -270,7 +270,7 @@ static void WritePortalfile(node_t *headnode, portal_state_t *state)
         fmt::print(portalFile, "{}\n", state->num_visportals);
         WritePortals_r(headnode, portalFile, false);
     } else {
-        if (options.fForcePRT1) {
+        if (settings::forceprt1.boolValue()) {
             /* Write a PRT1 file for loading in the map editor. Vis will reject it. */
             fmt::print(portalFile, "PRT1\n");
             fmt::print(portalFile, "{}\n", state->num_visclusters);

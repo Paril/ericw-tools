@@ -29,7 +29,9 @@
 #include <cassert>
 #include <sstream>
 #include <map>
+#include <set>
 #include <limits>
+#include <optional>
 
 namespace settings
 {
@@ -54,7 +56,7 @@ namespace settings
         COMMANDLINE = 2
     };
 
-    using strings = std::vector<const char *>;
+    using strings = std::vector<std::string>;
 
     struct settings_group
     {
@@ -84,13 +86,59 @@ namespace settings
             return false;
         }
 
+        // convenience function for parsing a whole string
+        inline std::optional<std::string> parseString(parser_base_t &parser)
+        {
+            // peek the first token, if it was
+            // a quoted string we can exit now
+            if (!parser.parse_token(PARSE_PEEK)) {
+                return std::nullopt;
+            }
+
+            if (parser.was_quoted) {
+                parser.parse_token();
+                return parser.token;
+            }
+
+            std::string value;
+
+            // not a quoted string, so everything will be literal.
+            // go until we reach a -.
+            while (true) {
+                if (parser.token[0] == '-') {
+                    break;
+                }
+
+                if (!value.empty()) {
+                    value += ' ';
+                }
+
+                value += parser.token;
+
+                parser.parse_token();
+
+                if (!parser.parse_token(PARSE_PEEK)) {
+                    break;
+                }
+            }
+
+		    while (std::isspace(value.back())) {
+			    value.pop_back();
+		    }
+		    while (std::isspace(value.front())) {
+			    value.erase(value.begin());
+		    }
+
+            return std::move(value);
+        }
+
     public:
-        inline const char *primaryName() const { return _names.at(0); }
+        inline const std::string &primaryName() const { return _names.at(0); }
         inline const strings &names() const { return _names; }
         inline const settings_group *getGroup() const { return _group; }
         inline const char *getDescription() const { return _description; }
 
-        virtual bool parse(parser_base_t &parser, bool locked = false) = 0;
+        virtual bool parse(const std::string &settingName, parser_base_t &parser, bool locked = false) = 0;
         virtual std::string stringValue() const = 0;
         virtual std::string format() const = 0;
 
@@ -120,18 +168,8 @@ namespace settings
             }
         }
 
-    public:
-        inline lockable_bool(const strings &names, bool v, const settings_group *group = nullptr, const char *description = "") : lockable_base(names, group, description), _value(v), _default(v) { }
-
-        inline lockable_bool(const char *name, bool v, const settings_group *group = nullptr, const char *description = "") : lockable_bool(strings{name}, v, group, description) { }
-
-        inline void setBoolValueLocked(bool f) { setBoolValueInternal(f, source::COMMANDLINE); }
-
-        inline void setBoolValue(bool f) { setBoolValueInternal(f, source::MAP); }
-
-        constexpr bool boolValue() const { return _value; }
-
-        virtual bool parse(parser_base_t &parser, bool locked = false) override
+    protected:
+        bool parseInternal(parser_base_t &parser, bool locked, bool truthValue)
         {
             // boolean flags can be just flagged themselves 
             if (parser.parse_token(PARSE_PEEK)) {
@@ -142,7 +180,7 @@ namespace settings
 
                     int intval = std::stoi(parser.token);
 
-                    const bool f = (intval != 0 && intval != -1); // treat 0 and -1 as false
+                    const bool f = (intval != 0 && intval != -1) ? truthValue : !truthValue; // treat 0 and -1 as false
 
                     if (locked)
                         setBoolValueLocked(f);
@@ -154,12 +192,28 @@ namespace settings
             }
 
             if (locked) {
-                setBoolValueLocked(true);
+                setBoolValueLocked(truthValue);
             } else {
-                setBoolValue(true);
+                setBoolValue(truthValue);
             }
 
             return true;
+        }
+
+    public:
+        inline lockable_bool(const strings &names, bool v, const settings_group *group = nullptr, const char *description = "") : lockable_base(names, group, description), _value(v), _default(v) { }
+
+        inline lockable_bool(const char *name, bool v, const settings_group *group = nullptr, const char *description = "") : lockable_bool(strings{name}, v, group, description) { }
+
+        inline void setBoolValueLocked(bool f) { setBoolValueInternal(f, source::COMMANDLINE); }
+
+        inline void setBoolValue(bool f) { setBoolValueInternal(f, source::MAP); }
+
+        constexpr bool boolValue() const { return _value; }
+
+        virtual bool parse(const std::string &settingName, parser_base_t &parser, bool locked = false) override
+        {
+            return parseInternal(parser, locked, true);
         }
 
         virtual std::string stringValue() const { return _value ? "1" : "0"; }
@@ -167,10 +221,74 @@ namespace settings
         virtual std::string format() const { return _default ? "[0]" : ""; }
     };
 
+    // an extension to lockable_bool; this automatically adds "no" versions
+    // to the list, and will allow them to be used to act as `-name 0`.
+    class lockable_invertable_bool : public lockable_bool
+    {
+    private:
+        strings extendNames(const strings &names)
+        {
+            strings n = names;
+
+            for (auto &name : names) {
+                n.push_back("no" + name);
+            }
+
+            return n;
+        }
+
+    public:
+        inline lockable_invertable_bool(const strings &names, bool v, const settings_group *group = nullptr, const char *description = "") : lockable_bool(extendNames(names), v, group, description) { }
+
+        inline lockable_invertable_bool(const char *name, bool v, const settings_group *group = nullptr, const char *description = "") : lockable_invertable_bool(strings{name}, v, group, description) { }
+
+        virtual bool parse(const std::string &settingName, parser_base_t &parser, bool locked = false) override
+        {
+            return parseInternal(parser, locked, settingName.compare(0, 2, "no") == 0 ? false : true);
+        }
+    };
+
+    class lockable_redirect : public lockable_base
+    {
+    private:
+        std::vector<lockable_base *> _settings;
+
+    public:
+        inline lockable_redirect(const strings &names, const std::initializer_list<lockable_base *> &settings, const settings_group *group = nullptr, const char *description = "") : lockable_base(names, group, description), _settings(settings) { }
+
+        inline lockable_redirect(const char *name, const std::initializer_list<lockable_base *> &settings, const settings_group *group = nullptr, const char *description = "") : lockable_redirect(strings{name}, settings, group, description) { }
+
+        virtual bool parse(const std::string &settingName, parser_base_t &parser, bool locked = false) override
+        {
+            // this is a bit ugly, but we run the parse function for
+            // every setting that we redirect from. for every entry
+            // except the last, we'll backup & restore the state.
+            for (size_t i = 0; i < _settings.size(); i++) {
+                if (i != _settings.size() - 1) {
+                    parser.push_state();
+                }
+
+                if (!_settings[i]->parse(settingName, parser, locked)) {
+                    return false;
+                }
+
+                if (i != _settings.size() - 1) {
+                    parser.pop_state();
+                }
+            }
+
+            return true;
+        }
+
+        virtual std::string stringValue() const { return _settings[0]->stringValue(); }
+
+        virtual std::string format() const { return _settings[0]->format(); }
+    };
+
     template<typename T>
     class lockable_numeric : public lockable_base
     {
-    private:
+    protected:
         T _value, _min, _max;
 
         inline void setValueInternal(T f, source newsource)
@@ -191,13 +309,14 @@ namespace settings
     public:
         constexpr const T &numberValue() const { return _value; }
 
+        template<typename = std::enable_if_t<!std::is_enum_v<T>>>
         inline bool boolValue() const { return _value > 0; }
 
         inline void setNumberValue(T f) { setValueInternal(f, source::MAP); }
 
         inline void setNumberValueLocked(T f) { setValueInternal(f, source::COMMANDLINE); }
 
-        virtual bool parse(parser_base_t &parser, bool locked = false) override
+        virtual bool parse(const std::string &settingName, parser_base_t &parser, bool locked = false) override
         {
             if (!parser.parse_token()) {
                 return false;
@@ -237,20 +356,98 @@ namespace settings
             Q_assert(_value <= _max);
         }
 
-        template<typename = std::enable_if_t<!std::is_enum_v<T>>>
-        inline lockable_numeric(strings names, T v, const settings_group *group = nullptr, const char *description = "")
-            : lockable_numeric(names, v, std::numeric_limits<T>::lowest(), std::numeric_limits<T>::max(), group, description)
+        inline lockable_numeric(const char *name, T v, T minval, T maxval, const settings_group *group = nullptr, const char *description = "")
+            : lockable_numeric(strings{name}, v, minval, maxval, group, description)
         {
         }
 
-        inline lockable_numeric(const char *name, T v, T minval, T maxval, const settings_group *group = nullptr, const char *description = "")
-            : lockable_numeric(strings{name}, v, minval, maxval, group, description)
+        template<typename = std::enable_if_t<!std::is_enum_v<T>>>
+        inline lockable_numeric(strings names, T v, const settings_group *group = nullptr, const char *description = "")
+            : lockable_numeric(names, v, std::numeric_limits<T>::lowest(), std::numeric_limits<T>::max(), group, description)
         {
         }
         
         template<typename = std::enable_if_t<!std::is_enum_v<T>>>
         inline lockable_numeric(const char *name, T v, const settings_group *group = nullptr, const char *description = "")
             : lockable_numeric(strings{name}, v, group, description)
+        {
+        }
+    };
+
+    enum class test { low, high };
+
+    template<typename T>
+    class lockable_enum : public lockable_base
+    {
+    private:
+        T _value;
+        std::map<std::string, T, case_insensitive_less> _values;
+
+        inline void setValueInternal(T f, source newsource)
+        {
+            if (changeSource(newsource)) {
+                _value = f;
+            }
+        }
+        
+    public:
+        constexpr const T &enumValue() const { return _value; }
+
+        inline void setEnumValue(T f) { setValueInternal(f, source::MAP); }
+
+        inline void setEnumValueLocked(T f) { setValueInternal(f, source::COMMANDLINE); }
+
+        virtual std::string stringValue() const override
+        {
+            for (auto &value : _values) {
+                if (value.second == _value) {
+                    return value.first;
+                }
+            }
+
+            throw std::exception();
+        }
+
+        virtual std::string format() const override
+        {
+            std::string f;
+            
+            for (auto &value : _values) {
+                if (!f.empty()) {
+                    f += " | ";
+                }
+
+                f += value.first;
+            }
+
+            return f;
+        }
+
+        virtual bool parse(const std::string &settingName, parser_base_t &parser, bool locked = false) override
+        {
+            if (!parser.parse_token()) {
+                return false;
+            }
+
+            if (auto it = _values.find(parser.token); it != _values.end()) {
+                if (locked)
+                    setEnumValueLocked(it->second);
+                else
+                    setEnumValue(it->second);
+
+                return true;
+            }
+
+            return false;
+        }
+
+        inline lockable_enum(strings names, T v, const std::initializer_list<std::pair<const char *, T>> &enumValues, const settings_group *group = nullptr, const char *description = "")
+            : lockable_base(names, group, description), _value(v), _values(enumValues.begin(), enumValues.end())
+        {
+        }
+
+        inline lockable_enum(const char *name, T v, const std::initializer_list<std::pair<const char *, T>> &enumValues, const settings_group *group = nullptr, const char *description = "")
+            : lockable_base(strings{name}, group, description), _value(v), _values(enumValues.begin(), enumValues.end())
         {
         }
     };
@@ -265,58 +462,17 @@ namespace settings
         std::string _format;
 
     public:
-        virtual bool parse(parser_base_t &parser, bool locked = false) override
+        virtual bool parse(const std::string &settingName, parser_base_t &parser, bool locked = false) override
         {
-            // peek the first token, if it was
-            // a quoted string we can exit now
-            if (!parser.parse_token(PARSE_PEEK)) {
-                return false;
-            }
-
-            if (parser.was_quoted) {
-                parser.parse_token();
-
+            if (auto value = parseString(parser)) {
                 if (changeSource(locked ? source::COMMANDLINE : source::MAP)) {
-                    _value = std::move(parser.token);
+                    _value = std::move(*value);
                 }
 
                 return true;
             }
 
-            std::string value;
-
-            // not a quoted string, so everything will be literal.
-            // go until we reach a -.
-            while (true) {
-                if (parser.token[0] == '-') {
-                    break;
-                }
-
-                if (!value.empty()) {
-                    value += ' ';
-                }
-
-                value += parser.token;
-
-                parser.parse_token();
-
-                if (!parser.parse_token(PARSE_PEEK)) {
-                    break;
-                }
-            }
-
-		    while (std::isspace(value.back())) {
-			    value.pop_back();
-		    }
-		    while (std::isspace(value.front())) {
-			    value.erase(value.begin());
-		    }
-
-            if (changeSource(locked ? source::COMMANDLINE : source::MAP)) {
-                _value = std::move(value);
-            }
-
-            return true;
+            return false;
         }
 
         virtual std::string stringValue() const { return _value; }
@@ -367,7 +523,7 @@ namespace settings
 
         inline void setVec3ValueLocked(const qvec3d &val) { transformAndSetVec3Value(val, source::COMMANDLINE); }
 
-        virtual bool parse(parser_base_t &parser, bool locked = false) override
+        virtual bool parse(const std::string &settingName, parser_base_t &parser, bool locked = false) override
         {
             qvec3d vec;
 
@@ -440,7 +596,7 @@ namespace settings
         std::map<const settings_group *, std::set<lockable_base *>, settings_less> _groupedSettings;
 
     public:
-        std::string programName, remainderName = "filename";
+        std::string programName, remainderName = "filename", usage;
 
         inline dict(const std::initializer_list<lockable_base *> &settings)
         {
@@ -485,7 +641,7 @@ namespace settings
                 return;
             }
 
-            setting->parse(parser_t { value }, locked);
+            setting->parse(name, parser_t { value }, locked);
         }
 
         inline void setSettings(const entdict_t &epairs, bool locked)

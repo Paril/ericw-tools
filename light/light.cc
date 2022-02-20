@@ -1244,7 +1244,7 @@ int light_main(int argc, const char **argv)
 
     // mxd. Use 1.0 rangescale as a default to better match with qrad3/arghrad
     if ((bspdata.loadversion->game->id == GAME_QUAKE_II) && !cfg.rangescale.isChanged()) {
-        cfg.rangescale = std::move(settings::lockable_scalar(cfg.rangescale.primaryName(), 1.0f, 0.0f, 100.0f)); // Gross hacks to avoid displaying this in OptionsSummary...
+        cfg.rangescale = std::move(settings::lockable_scalar(cfg.rangescale.primaryName().c_str(), 1.0f, 0.0f, 100.0f)); // Gross hacks to avoid displaying this in OptionsSummary...
     }
 
     img::init_palette(bspdata.loadversion->game);

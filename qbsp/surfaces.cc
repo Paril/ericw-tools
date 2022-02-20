@@ -330,7 +330,7 @@ FindFaceEdges
 */
 static void FindFaceEdges(mapentity_t *entity, face_t *face)
 {
-    if (!options.includeSkip && map.mtexinfos.at(face->texinfo).flags.is_skip)
+    if (!settings::includeskip.boolValue() && map.mtexinfos.at(face->texinfo).flags.is_skip)
         return;
     if (map.mtexinfos.at(face->texinfo).flags.is_hint)
         return;
@@ -404,7 +404,7 @@ EmitFace
 */
 static void EmitFace(mapentity_t *entity, face_t *face)
 {
-    if (!options.includeSkip && map.mtexinfos.at(face->texinfo).flags.is_skip)
+    if (!settings::includeskip.boolValue() && map.mtexinfos.at(face->texinfo).flags.is_skip)
         return;
     if (map.mtexinfos.at(face->texinfo).flags.is_hint)
         return;
@@ -443,7 +443,7 @@ static void GrowNodeRegion(mapentity_t *entity, node_t *node)
 
 static void CountFace(mapentity_t *entity, face_t *f, size_t &facesCount, size_t &vertexesCount)
 {
-    if (!options.includeSkip && map.mtexinfos.at(f->texinfo).flags.is_skip)
+    if (!settings::includeskip.boolValue() && map.mtexinfos.at(f->texinfo).flags.is_skip)
         return;
     if (map.mtexinfos.at(f->texinfo).flags.is_hint)
         return;
