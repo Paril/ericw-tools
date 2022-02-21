@@ -1081,6 +1081,8 @@ namespace settings
         if (options.target_version) {
             FError("BSP version was set by multiple flags; currently {}, tried to change to {}\n", options.target_version->name, version->name);
         }
+
+        options.target_version = version;
     }
 
     inline void compileSettings(int argc, const char **argv)
@@ -1140,6 +1142,10 @@ namespace settings
 
         if (bsp2rmq.value()) {
             set_target_version(&bspver_bsp2rmq);
+        }
+
+        if (!options.target_version) {
+            set_target_version(&bspver_q1);
         }
 
         // if we wanted hexen2, update it now

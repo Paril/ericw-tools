@@ -162,42 +162,6 @@ std::filesystem::path mapfilename;
 int dump_facenum = -1;
 int dump_vertnum = -1;
 
-static void PrintUsage()
-{
-    printf("usage: light [options] mapname.bsp\n"
-           "\n"
-           "Output format options:\n"
-           "  -lit                write .lit file\n"
-           "\n"
-           "Debug modes:\n"
-           "  -dirtdebug          only save the AO values to the lightmap\n"
-           "  -phongdebug         only save the normals to the lightmap\n"
-           "  -bouncedebug        only save bounced lighting to the lightmap\n"
-           "\n"
-           "Experimental options:\n"
-           "  -lit2               write .lit2 file\n"
-           "  -lux                write .lux file\n"
-           "  -bspxlit            writes rgb data into the bsp itself\n"
-           "  -bspx               writes both rgb and directions data into the bsp itself\n");
-
-    printf("\n");
-    printf("Overridable worldspawn keys:\n");
-
-    for (auto setting : cfg_static.settings) {
-        printf("  ");
-        for (int i = 0; i < setting->names().size(); i++) {
-            const auto &name = setting->names().at(i);
-
-            fmt::print("-{} {} ", name, setting->format());
-
-            if ((i + 1) < setting->names().size()) {
-                printf("| ");
-            }
-        }
-        printf("\n");
-    }
-}
-
 namespace settings
 {
     fs::path sourceMap;
@@ -1066,8 +1030,6 @@ int light_main(int argc, const char **argv)
     LogPrint("---- light / ericw-tools " stringify(ERICWTOOLS_VERSION) " ----\n");
 
     settings::compileSettings(argc, argv);
-    
-    settings::globalSettings.printHelp();
 
     LowerProcessPriority();
 

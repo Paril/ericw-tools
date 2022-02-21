@@ -167,8 +167,8 @@ public:
     bool fVerbose = true;
     bool fAllverbose = false;
     bool fNoverbose = false;
-    const bspversion_t *target_version = &bspver_q1;
-    const gamedef_t *target_game = target_version->game;
+    const bspversion_t *target_version;
+    const gamedef_t *target_game;
     std::filesystem::path szMapName;
     std::filesystem::path szBSPName;
 };

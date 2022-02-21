@@ -184,20 +184,12 @@ extern unsigned long c_chains;
 
 extern bool showgetleaf;
 
-extern int testlevel;
-extern bool ambientsky;
-extern bool ambientwater;
-extern bool ambientslime;
-extern bool ambientlava;
-extern int visdist;
-extern bool nostate;
-
 extern uint8_t *uncompressed;
 extern int leafbytes;
 extern int leafbytes_real;
 extern int leaflongs;
 
-extern std::filesystem::path sourcefile, portalfile, statefile, statetmpfile;
+extern std::filesystem::path portalfile, statefile, statetmpfile;
 
 void BasePortalVis(void);
 
@@ -214,3 +206,16 @@ bool LoadVisState(void);
 
 void DecompressRow(const uint8_t *in, const int numbytes, uint8_t *decompressed);
 int CompressRow(const uint8_t *vis, const int numbytes, uint8_t *out);
+
+#include <common/settings.hh>
+
+namespace settings
+{
+    extern lockable_int32 level;
+    extern lockable_bool noambientsky;
+    extern lockable_bool noambientwater;
+    extern lockable_bool noambientslime;
+    extern lockable_bool noambientlava;
+    extern lockable_scalar visdist;
+    extern lockable_bool nostate;
+}
