@@ -442,7 +442,8 @@ static void *BasePortalThread(void *dummy)
                 continue; // no points on back
 
             if (settings::visdist.value() > 0) {
-                if (tp->winding->distFromPortal(p) > settings::visdist.value() || p->winding->distFromPortal(tp) > settings::visdist.value())
+                if (tp->winding->distFromPortal(p) > settings::visdist.value() ||
+                    p->winding->distFromPortal(tp) > settings::visdist.value())
                     continue;
             }
 

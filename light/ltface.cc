@@ -724,7 +724,7 @@ static bool Lightsurf_Init(
     } else {
         // if modelinfo mincolor not set, use the one from the .texinfo file
         if (lightsurf->minlight > 0 && qv::emptyExact(extended_flags.minlight_color)) {
-            lightsurf->minlight_color = { 255.0 };
+            lightsurf->minlight_color = {255.0};
         } else {
             lightsurf->minlight_color = extended_flags.minlight_color;
         }
@@ -939,7 +939,6 @@ static float GetLightValueWithAngle(const globalconfig_t &cfg, const light_t *en
     return add;
 }
 
-
 static void Matrix4x4_CM_Transform4(const std::array<vec_t, 16> &matrix, const qvec4d &vector, qvec4d &product)
 {
     product[0] = matrix[0] * vector[0] + matrix[4] * vector[1] + matrix[8] * vector[2] + matrix[12] * vector[3];
@@ -984,7 +983,7 @@ static bool LightFace_SampleMipTex(
     }
 
     float sfrac = (coord[0]) * (tex->meta.width - 1); // mxd. We are sampling sbase+1 pixels, so multiplying by
-                                                    // tex->width will result in an 1px overdraw, same for tbase
+                                                      // tex->width will result in an 1px overdraw, same for tbase
     const int sbase = sfrac;
     sfrac -= sbase;
     float tfrac = (1 - coord[1]) * (tex->meta.height - 1);
@@ -999,10 +998,7 @@ static bool LightFace_SampleMipTex(
     weight[2] = (1 - sfrac) * (tfrac);
     pi[3] = tex->pixels[((sbase + 1) % tex->meta.width) + (tex->meta.width * ((tbase + 1) % tex->meta.height))];
     weight[3] = (sfrac) * (tfrac);
-    result = pi[0].xyz() * weight[0] +
-                pi[1].xyz() * weight[1] +
-                pi[2].xyz() * weight[2] +
-                pi[3].xyz() * weight[3];
+    result = pi[0].xyz() * weight[0] + pi[1].xyz() * weight[1] + pi[2].xyz() * weight[2] + pi[3].xyz() * weight[3];
     result *= 2;
 
     return true;
@@ -1017,7 +1013,7 @@ static void GetLightContrib(const globalconfig_t &cfg, const light_t *entity, co
         // Catch 0 distance between sample point and light (produces infinite brightness / nan's) and causes
         // problems later
         dist = 0.1f;
-        surfpointToLightDir_out = { 0, 0, 1 };
+        surfpointToLightDir_out = {0, 0, 1};
     }
     const float add = GetLightValueWithAngle(cfg, entity, surfnorm, surfpointToLightDir_out, dist, twosided);
 
@@ -1067,9 +1063,8 @@ float GetLightDist(const globalconfig_t &cfg, const light_t *entity, vec_t desir
                 break;
             case LF_INVERSE2:
             case LF_INVERSE2A:
-                fadedist =
-                    sqrt(fabs(entity->light.value() * SQR(LF_SCALE) /
-                              (SQR(cfg.scaledist.value()) * SQR(entity->atten.value()) * desiredLight)));
+                fadedist = sqrt(fabs(entity->light.value() * SQR(LF_SCALE) /
+                                     (SQR(cfg.scaledist.value()) * SQR(entity->atten.value()) * desiredLight)));
                 if (entity->getFormula() == LF_INVERSE2A) {
                     fadedist -= (LF_SCALE / (cfg.scaledist.value() * entity->atten.value()));
                 }
@@ -1239,7 +1234,7 @@ std::map<int, qvec3f> GetDirectLighting(
         // FIXME: this is always 128 because vpl.pos and origin are always equal it seems?
         const float surfpointToLightDist =
             max(128.0, GetDir(vpl.pos, origin,
-                            surfpointToLightDir)); // Clamp away hotspots, also avoid division by 0...
+                           surfpointToLightDir)); // Clamp away hotspots, also avoid division by 0...
         const vec_t angle = qv::dot(surfpointToLightDir, normal);
         if (angle <= 0)
             continue;
@@ -1691,7 +1686,7 @@ static void LightFace_DirtDebug(const lightsurf_t *lightsurf, lightmapdict_t *li
     for (int i = 0; i < lightsurf->numpoints; i++) {
         lightsample_t *sample = &lightmap->samples[i];
         const float light = 255 * Dirt_GetScaleFactor(cfg, lightsurf->occlusion[i], NULL, 0.0, lightsurf);
-        sample->color = { light };
+        sample->color = {light};
     }
 
     Lightmap_Save(lightmaps, lightsurf, lightmap, 0);
@@ -2189,9 +2184,9 @@ static void LightFace_OccludedDebug(lightsurf_t *lightsurf, lightmapdict_t *ligh
     for (int i = 0; i < lightsurf->numpoints; i++) {
         lightsample_t *sample = &lightmap->samples[i];
         if (lightsurf->occluded[i]) {
-            sample->color = { 255, 0, 0 };
+            sample->color = {255, 0, 0};
         } else {
-            sample->color = { 0, 255, 0 };
+            sample->color = {0, 255, 0};
         }
         // N.B.: Mark it as un-occluded now, to disable special handling later in the -extra/-extra4 downscaling code
         lightsurf->occluded[i] = false;
@@ -2228,12 +2223,12 @@ static void LightFace_DebugNeighbours(lightsurf_t *lightsurf, lightmapdict_t *li
 
         if (sample_face == dump_facenum) {
             /* Red - the sample is on the selected face */
-            sample->color = { 255, 0, 0 };
+            sample->color = {255, 0, 0};
         } else if (has_sample_on_dumpface) {
             /* Green - the face has some samples on the selected face */
-            sample->color = { 0, 255, 0 };
+            sample->color = {0, 255, 0};
         } else {
-            sample->color = { };
+            sample->color = {};
         }
         // N.B.: Mark it as un-occluded now, to disable special handling later in the -extra/-extra4 downscaling code
         lightsurf->occluded[i] = false;
@@ -2318,14 +2313,14 @@ static void GetUpRtVecs(const qvec3d &normal, qvec3d &myUp, qvec3d &myRt)
     /* check if the normal is aligned to the world-up */
     if (normal[0] == 0.0f && normal[1] == 0.0f) {
         if (normal[2] == 1.0f) {
-            myRt = { 1.0, 0.0, 0.0 };
-            myUp = { 0.0, 1.0, 0.0 };
+            myRt = {1.0, 0.0, 0.0};
+            myUp = {0.0, 1.0, 0.0};
         } else if (normal[2] == -1.0f) {
-            myRt = { -1.0, 0.0, 0.0 };
-            myUp = { 0.0, 1.0, 0.0 };
+            myRt = {-1.0, 0.0, 0.0};
+            myUp = {0.0, 1.0, 0.0};
         }
     } else {
-        constexpr qvec3d worldUp { 0, 0, 1 };
+        constexpr qvec3d worldUp{0, 0, 1};
         myRt = qv::normalize(qv::cross(normal, worldUp));
         myUp = qv::normalize(qv::cross(myRt, normal));
     }
@@ -2347,7 +2342,7 @@ inline qvec3d GetDirtVector(const globalconfig_t &cfg, int i)
         /* get random vector */
         float angle = Random() * DEG2RAD(360.0f);
         float elevation = Random() * DEG2RAD(cfg.dirtAngle.value());
-        return { cos(angle) * sin(elevation), sin(angle) * sin(elevation), cos(elevation) };
+        return {cos(angle) * sin(elevation), sin(angle) * sin(elevation), cos(elevation)};
     }
 
     return dirtVectors[i];
@@ -3068,7 +3063,7 @@ static void WriteSingleLightmap(const mbsp_t *bsp, const mface_t *face, const li
 
             This must be max(), see LightNormalize in MarkV 1036.
             */
-            float light = max({ color[0], color[1], color[2] });
+            float light = max({color[0], color[1], color[2]});
             if (light < 0)
                 light = 0;
             if (light > 255)
@@ -3077,14 +3072,11 @@ static void WriteSingleLightmap(const mbsp_t *bsp, const mface_t *face, const li
 
             if (lux) {
                 qvec3d direction = output_dir->at(sampleindex).xyz();
-                qvec3d temp = {
-                    qv::dot(direction, lightsurf->snormal),
-                    qv::dot(direction, lightsurf->tnormal),
-                    qv::dot(direction, lightsurf->plane.normal)
-                };
+                qvec3d temp = {qv::dot(direction, lightsurf->snormal), qv::dot(direction, lightsurf->tnormal),
+                    qv::dot(direction, lightsurf->plane.normal)};
 
                 if (qv::emptyExact(temp))
-                    temp = { 0, 0, 1 };
+                    temp = {0, 0, 1};
                 else
                     qv::normalizeInPlace(temp);
 

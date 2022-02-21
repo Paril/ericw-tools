@@ -197,7 +197,7 @@ static int NewPlane(const qplane3d &plane, int *side)
         FError("invalid normal (vector length {:.4})", len);
 
     size_t index = map.planes.size();
-    qbsp_plane_t &added_plane = map.planes.emplace_back(qbsp_plane_t { plane });
+    qbsp_plane_t &added_plane = map.planes.emplace_back(qbsp_plane_t{plane});
 
     bool out_flipped = NormalizePlane(added_plane, side != nullptr);
 
@@ -286,7 +286,7 @@ CreateBrushFaces
 =================
 */
 static std::vector<face_t> CreateBrushFaces(const mapentity_t *src, hullbrush_t *hullbrush, const int hullnum,
-                                            const rotation_t rottype = rotation_t::none, const qvec3d &rotate_offset = {})
+    const rotation_t rottype = rotation_t::none, const qvec3d &rotate_offset = {})
 {
     vec_t r;
     std::optional<winding_t> w;
@@ -330,7 +330,7 @@ static std::vector<face_t> CreateBrushFaces(const mapentity_t *src, hullbrush_t 
         if (w->size() > MAXEDGES) {
             FError("face->numpoints > MAXEDGES ({}), source face on line {}", MAXEDGES, mapface.linenum);
         }
-        
+
         // this face is a keeper
         face_t &f = facelist.emplace_back();
         f.planenum = PLANENUM_LEAF;
@@ -401,7 +401,7 @@ static std::vector<face_t> CreateBrushFaces(const mapentity_t *src, hullbrush_t 
         hullbrush->bounds = {-delta, delta};
     }
 
-    return { std::make_move_iterator(facelist.begin()), std::make_move_iterator(facelist.end()) };
+    return {std::make_move_iterator(facelist.begin()), std::make_move_iterator(facelist.end())};
 }
 
 /*
@@ -446,7 +446,7 @@ static void AddBrushPlane(hullbrush_t *hullbrush, const qplane3d &plane)
             "brush->faces >= MAX_FACES ({}), source brush on line {}", MAX_FACES, hullbrush->srcbrush->face(0).linenum);
 
     mapface_t &mapface = hullbrush->faces.emplace_back();
-    mapface.plane = { plane };
+    mapface.plane = {plane};
     mapface.texinfo = 0;
 }
 
@@ -520,10 +520,7 @@ static int AddHullPoint(hullbrush_t *hullbrush, const qvec3d &p, const aabb3d &h
     for (size_t x = 0; x < 2; x++)
         for (size_t y = 0; y < 2; y++)
             for (size_t z = 0; z < 2; z++) {
-                hullbrush->corners.emplace_back(
-                    p[0] + hull_size[x][0],
-                    p[1] + hull_size[y][1],
-                    p[2] + hull_size[z][2]);
+                hullbrush->corners.emplace_back(p[0] + hull_size[x][0], p[1] + hull_size[y][1], p[2] + hull_size[z][2]);
             }
 
     return i;
@@ -547,8 +544,7 @@ static void AddHullEdge(hullbrush_t *hullbrush, const qvec3d &p1, const qvec3d &
     pt2 = AddHullPoint(hullbrush, p2, hull_size);
 
     for (auto &edge : hullbrush->edges)
-        if ((edge == std::make_tuple(pt1, pt2)) ||
-            (edge == std::make_tuple(pt2, pt1)))
+        if ((edge == std::make_tuple(pt1, pt2)) || (edge == std::make_tuple(pt2, pt1)))
             return;
 
     if (hullbrush->edges.size() == MAX_HULL_EDGES)
@@ -613,7 +609,7 @@ static void ExpandBrush(hullbrush_t *hullbrush, const aabb3d &hull_size, std::ve
     for (auto &mapface : hullbrush->faces) {
         if (mapface.flags.no_expand)
             continue;
-        qvec3d corner { };
+        qvec3d corner{};
         for (x = 0; x < 3; x++) {
             if (mapface.plane.normal[x] > 0)
                 corner[x] = hull_size[1][x];
@@ -654,12 +650,13 @@ static contentflags_t Brush_GetContents(const mapbrush_t *mapbrush)
         const mapface_t &mapface = mapbrush->face(i);
         const mtexinfo_t &texinfo = map.mtexinfos.at(mapface.texinfo);
 
-        contentflags_t contents = options.target_game->face_get_contents(mapface.texname.data(), texinfo.flags, mapface.contents);
+        contentflags_t contents =
+            options.target_game->face_get_contents(mapface.texname.data(), texinfo.flags, mapface.contents);
 
         if (contents.is_empty(options.target_game)) {
             continue;
         }
-        
+
         // use the first non-empty as the base contents value
         if (!base_contents_set) {
             base_contents_set = true;
@@ -667,13 +664,12 @@ static contentflags_t Brush_GetContents(const mapbrush_t *mapbrush)
         }
 
         if (!contents.types_equal(base_contents, options.target_game)) {
-            LogPrint("mixed face contents ({} != {}) at line {}\n",
-                base_contents.to_string(options.target_game),
+            LogPrint("mixed face contents ({} != {}) at line {}\n", base_contents.to_string(options.target_game),
                 contents.to_string(options.target_game), mapface.linenum);
             break;
         }
     }
-    
+
     // make sure we found a valid type
     Q_assert(base_contents.is_valid(options.target_game, false));
 
@@ -688,7 +684,7 @@ Converts a mapbrush to a bsp brush
 ===============
 */
 std::optional<brush_t> LoadBrush(const mapentity_t *src, const mapbrush_t *mapbrush, const contentflags_t &contents,
-                                 const qvec3d &rotate_offset, const rotation_t rottype, const int hullnum)
+    const qvec3d &rotate_offset, const rotation_t rottype, const int hullnum)
 {
     hullbrush_t hullbrush;
     std::vector<face_t> facelist;
@@ -728,7 +724,7 @@ std::optional<brush_t> LoadBrush(const mapentity_t *src, const mapbrush_t *mapbr
     }
 
     // create the brush
-    brush_t brush {};
+    brush_t brush{};
     brush.contents = contents;
     brush.faces = std::move(facelist);
     brush.bounds = hullbrush.bounds;
@@ -748,7 +744,7 @@ static brush_stats_t Entity_SortBrushes(mapentity_t *dst, brush_types_t &types)
     brush_stats_t stats;
 
     Q_assert(dst->brushes.empty());
-    
+
     stats.detail_illusionary = types.detail_illusionary.size();
     stats.liquid = types.liquid.size();
     stats.detail_fence = types.detail_fence.size();
@@ -756,14 +752,20 @@ static brush_stats_t Entity_SortBrushes(mapentity_t *dst, brush_types_t &types)
     stats.sky = types.sky.size();
     stats.solid = types.solid.size();
 
-    dst->brushes.reserve(stats.detail_illusionary + stats.liquid + stats.detail_fence + stats.detail + stats.sky + stats.solid);
+    dst->brushes.reserve(
+        stats.detail_illusionary + stats.liquid + stats.detail_fence + stats.detail + stats.sky + stats.solid);
 
-    dst->brushes.insert(dst->brushes.end(), make_move_iterator(types.detail_illusionary.begin()), make_move_iterator(types.detail_illusionary.end()));
-    dst->brushes.insert(dst->brushes.end(), make_move_iterator(types.liquid.begin()), make_move_iterator(types.liquid.end()));
-    dst->brushes.insert(dst->brushes.end(), make_move_iterator(types.detail_fence.begin()), make_move_iterator(types.detail_fence.end()));
-    dst->brushes.insert(dst->brushes.end(), make_move_iterator(types.detail.begin()), make_move_iterator(types.detail.end()));
+    dst->brushes.insert(dst->brushes.end(), make_move_iterator(types.detail_illusionary.begin()),
+        make_move_iterator(types.detail_illusionary.end()));
+    dst->brushes.insert(
+        dst->brushes.end(), make_move_iterator(types.liquid.begin()), make_move_iterator(types.liquid.end()));
+    dst->brushes.insert(dst->brushes.end(), make_move_iterator(types.detail_fence.begin()),
+        make_move_iterator(types.detail_fence.end()));
+    dst->brushes.insert(
+        dst->brushes.end(), make_move_iterator(types.detail.begin()), make_move_iterator(types.detail.end()));
     dst->brushes.insert(dst->brushes.end(), make_move_iterator(types.sky.begin()), make_move_iterator(types.sky.end()));
-    dst->brushes.insert(dst->brushes.end(), make_move_iterator(types.solid.begin()), make_move_iterator(types.solid.end()));
+    dst->brushes.insert(
+        dst->brushes.end(), make_move_iterator(types.solid.begin()), make_move_iterator(types.solid.end()));
 
     return stats;
 }
@@ -928,7 +930,7 @@ static void Brush_LoadEntity(mapentity_t *dst, const mapentity_t *src, const int
                 }
 
                 continue;
-            // for hull1, 2, etc., convert clip to CONTENTS_SOLID
+                // for hull1, 2, etc., convert clip to CONTENTS_SOLID
             } else {
                 contents = options.target_game->create_solid_contents();
             }
@@ -940,7 +942,7 @@ static void Brush_LoadEntity(mapentity_t *dst, const mapentity_t *src, const int
                 continue;
             contents = options.target_game->create_empty_contents();
         }
-        
+
         /* entities in some games never use water merging */
         if (dst != pWorldEnt() && !options.target_game->allow_contented_bmodels) {
             contents = options.target_game->create_solid_contents();

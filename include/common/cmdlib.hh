@@ -89,7 +89,7 @@ struct case_insensitive_less
  * @param s2 right string
  * @return -1 when s1 < s2, 0 when s1 == s2, 1 when s1 > s2
  */
-int natstrcmp( const char* s1, const char* s2 );
+int natstrcmp(const char *s1, const char *s2);
 
 /**
  * STL natural less-than string compare
@@ -97,7 +97,7 @@ int natstrcmp( const char* s1, const char* s2 );
  * @param s2 right string
  * @return true when natural s1 < s2
  */
-bool natstrlt( const char* s1, const char* s2 );
+bool natstrlt(const char *s1, const char *s2);
 
 /**
  * @param s1 left string
@@ -105,8 +105,9 @@ bool natstrlt( const char* s1, const char* s2 );
  * std::string variant of natstrlt.
  * @return true when natural s1 < s2
  */
-inline bool stlnatstrlt( const std::string& s1, const std::string &s2 ) {
-  return natstrlt( s1.c_str(), s2.c_str() );
+inline bool stlnatstrlt(const std::string &s1, const std::string &s2)
+{
+    return natstrlt(s1.c_str(), s2.c_str());
 }
 
 struct natural_equal
@@ -119,10 +120,7 @@ struct natural_equal
 
 struct natural_less
 {
-    bool operator()(const std::string &l, const std::string &r) const noexcept
-    {
-        return stlnatstrlt(l, r);
-    }
+    bool operator()(const std::string &l, const std::string &r) const noexcept { return stlnatstrlt(l, r); }
 };
 
 #include <chrono>
@@ -239,7 +237,7 @@ inline void Q_assert_(bool success, const char *expr, const char *file, int line
 {
     if (!success) {
         LogPrint("{}:{}: Q_assert({}) failed.\n", file, line, expr);
-        //assert(0);
+        // assert(0);
 #ifdef _WIN32
         __debugbreak();
 #endif
@@ -314,9 +312,11 @@ inline std::ios_base &endianness(std::ios_base &os)
     return os;
 }
 
-// blank type used 
+// blank type used
 template<size_t n>
-struct padding { };
+struct padding
+{
+};
 
 // using <= for ostream and >= for istream
 template<size_t n>
@@ -440,7 +440,7 @@ inline std::ostream &operator<=(std::ostream &s, const std::array<T, N> &c)
 }
 
 template<typename... T>
-inline std::ostream &operator<=(std::ostream &s, std::tuple<T&...> tuple)
+inline std::ostream &operator<=(std::ostream &s, std::tuple<T &...> tuple)
 {
     std::apply([&s](auto &&...args) { ((s <= args), ...); }, tuple);
     return s;
@@ -582,7 +582,7 @@ inline std::istream &operator>=(std::istream &s, std::array<T, N> &c)
 }
 
 template<typename... T>
-inline std::istream &operator>=(std::istream &s, std::tuple<T&...> tuple)
+inline std::istream &operator>=(std::istream &s, std::tuple<T &...> tuple)
 {
     std::apply([&s](auto &&...args) { ((s >= args), ...); }, tuple);
     return s;
@@ -698,7 +698,7 @@ public:
             this->setg(cbase, cbase, cbase + size);
         }
     }
-    
+
 protected:
     inline void setpptrs(char *first, char *next, char *end)
     {
@@ -798,8 +798,7 @@ struct memstream : virtual membuf, std::ostream, std::istream
     }
 
     inline memstream(const void *base, size_t size, std::ios_base::openmode which = std::ios_base::in)
-        : membuf(base, size, which), std::ostream(nullptr),
-          std::istream(static_cast<std::streambuf *>(this))
+        : membuf(base, size, which), std::ostream(nullptr), std::istream(static_cast<std::streambuf *>(this))
     {
     }
 };

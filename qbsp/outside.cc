@@ -59,7 +59,7 @@ static node_t *PointInLeaf(node_t *node, const qvec3d &point)
     } else {
         // point is exactly on the node plane
 
-        node_t *front = PointInLeaf(node->children[0], point);    
+        node_t *front = PointInLeaf(node->children[0], point);
         node_t *back = PointInLeaf(node->children[1], point);
 
         // prefer the opaque one
@@ -141,9 +141,9 @@ static void FloodFillFromVoid()
     {
         const int side = (outside_node.portals->nodes[0] == &outside_node);
         node_t *fillnode = outside_node.portals->nodes[side];
-        
+
         Q_assert(fillnode != &outside_node);
-        
+
         // this must be true because the map is made from closed brushes, beyion which is void
         Q_assert(!fillnode->opaque());
         queue.emplace_back(fillnode, 0);
@@ -262,7 +262,7 @@ static void WriteLeakLine(const mapentity_t *leakentity, const std::vector<porta
     std::ofstream ptsfile = InitPtsFile();
 
     qvec3d prevpt = leakentity->origin;
-    
+
     for (portal_t *portal : leakline) {
         qvec3d currpt = portal->winding->center();
 
@@ -448,7 +448,7 @@ bool FillOutside(node_t *node, const int hullnum)
     if (occupied_leafs.empty()) {
         LogPrint("WARNING: No entities in empty space -- no filling performed (hull {})\n", hullnum);
         return false;
-    }    
+    }
 
     // Flood fill from outside -> in.
     //

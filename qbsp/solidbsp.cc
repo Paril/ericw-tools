@@ -286,7 +286,7 @@ static std::vector<surface_t>::iterator ChooseMidPlaneFromList(std::vector<surfa
 
             const qbsp_plane_t &plane = map.planes[surf->planenum];
             bool axial = false;
-            
+
             /* check for axis aligned surfaces */
             if (plane.type < 3) {
                 axial = true;
@@ -511,7 +511,7 @@ static twosided<std::optional<surface_t>> DividePlane(surface_t &in, const qplan
             surface_t newsurf = in.shallowCopy();
 
             // Prepend each face in facet list to either in or newsurf lists
-            for (auto it = in.faces.begin(); it != in.faces.end(); ) {
+            for (auto it = in.faces.begin(); it != in.faces.end();) {
                 if ((*it)->planeside == 1) {
                     auto next = std::next(it);
                     newsurf.faces.splice(newsurf.faces.begin(), in.faces, it);
@@ -530,8 +530,8 @@ static twosided<std::optional<surface_t>> DividePlane(surface_t &in, const qplan
                 newsurf.calculateInfo();
                 back = std::move(newsurf);
             }
-            
-            return { front, back };
+
+            return {front, back};
         }
 
         if (inplane->dist > split.dist) {
@@ -540,7 +540,7 @@ static twosided<std::optional<surface_t>> DividePlane(surface_t &in, const qplan
             back = std::move(in);
         }
 
-        return { front, back };
+        return {front, back};
     }
 
     // do a real split.  may still end up entirely on one side
@@ -561,12 +561,12 @@ static twosided<std::optional<surface_t>> DividePlane(surface_t &in, const qplan
     // if nothing actually got split, just move the in plane
     if (frontlist.empty()) {
         in.faces = std::move(backlist);
-        return { std::nullopt, std::move(in) };
+        return {std::nullopt, std::move(in)};
     }
 
     if (backlist.empty()) {
         in.faces = std::move(frontlist);
-        return { std::move(in), std::nullopt };
+        return {std::move(in), std::nullopt};
     }
 
     // stuff got split, so allocate one new plane and reuse in
@@ -578,7 +578,7 @@ static twosided<std::optional<surface_t>> DividePlane(surface_t &in, const qplan
     in.faces = std::move(frontlist);
     in.calculateInfo();
 
-    return { std::move(in), std::move(newsurf) };
+    return {std::move(in), std::move(newsurf)};
 }
 
 /*
@@ -697,9 +697,9 @@ static std::list<face_t *> LinkNodeFaces(surface_t &surface)
     surface.faces.reverse();
 
     nodefaces += surface.faces.size();
-    
+
     std::list<face_t *> list;
-     
+
     // copy
     for (auto &f : surface.faces) {
         face_t *newf = new face_t(*f);

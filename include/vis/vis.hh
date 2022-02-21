@@ -211,11 +211,11 @@ int CompressRow(const uint8_t *vis, const int numbytes, uint8_t *out);
 
 namespace settings
 {
-    extern lockable_int32 level;
-    extern lockable_bool noambientsky;
-    extern lockable_bool noambientwater;
-    extern lockable_bool noambientslime;
-    extern lockable_bool noambientlava;
-    extern lockable_scalar visdist;
-    extern lockable_bool nostate;
-}
+extern lockable_int32 level;
+extern lockable_bool noambientsky;
+extern lockable_bool noambientwater;
+extern lockable_bool noambientslime;
+extern lockable_bool noambientlava;
+extern lockable_scalar visdist;
+extern lockable_bool nostate;
+} // namespace settings

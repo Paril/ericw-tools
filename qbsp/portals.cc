@@ -401,8 +401,7 @@ static void MakeHeadnodePortals(const mapentity_t *entity, node_t *node)
         for (j = 0; j < 6; j++) {
             if (j == i)
                 continue;
-            portals[i]->winding =
-                portals[i]->winding->clip(bplanes[j], ON_EPSILON, true)[SIDE_FRONT];
+            portals[i]->winding = portals[i]->winding->clip(bplanes[j], ON_EPSILON, true)[SIDE_FRONT];
         }
     }
 }

@@ -65,101 +65,102 @@ enum class conversion_t
 
 namespace settings
 {
-    extern lockable_int32 subdivide;
-    extern lockable_bool noskip;
-    extern lockable_bool nodetail;
-    extern lockable_bool onlyents;
-    extern lockable_bool splitsky;
-    extern lockable_bool splitturb;
-    extern lockable_redirect splitspecial;
-    extern lockable_invertable_bool transwater;
-    extern lockable_bool transsky;
-    extern lockable_bool notextures;
-    extern lockable_enum<conversion_t> convertmapformat;
-    extern lockable_invertable_bool oldaxis;
-    extern lockable_bool forcegoodtree;
-    extern lockable_scalar midsplitsurffraction;
-    extern lockable_int32 maxnodesize;
-    extern lockable_bool oldrottex;
-    extern lockable_scalar epsilon;
-    extern lockable_bool contenthack;
-    extern lockable_bool leaktest;
-    extern lockable_bool includeskip;
-    extern lockable_scalar worldextent;
-    extern lockable_int32 leakdist;
-    extern lockable_bool forceprt1;
-    extern lockable_bool omitdetail;
-    extern lockable_bool omitdetailwall;
-    extern lockable_bool omitdetailillusionary;
-    extern lockable_bool omitdetailfence;
-    extern lockable_bool expand;
+extern lockable_int32 subdivide;
+extern lockable_bool noskip;
+extern lockable_bool nodetail;
+extern lockable_bool onlyents;
+extern lockable_bool splitsky;
+extern lockable_bool splitturb;
+extern lockable_redirect splitspecial;
+extern lockable_invertable_bool transwater;
+extern lockable_bool transsky;
+extern lockable_bool notextures;
+extern lockable_enum<conversion_t> convertmapformat;
+extern lockable_invertable_bool oldaxis;
+extern lockable_bool forcegoodtree;
+extern lockable_scalar midsplitsurffraction;
+extern lockable_int32 maxnodesize;
+extern lockable_bool oldrottex;
+extern lockable_scalar epsilon;
+extern lockable_bool contenthack;
+extern lockable_bool leaktest;
+extern lockable_bool includeskip;
+extern lockable_scalar worldextent;
+extern lockable_int32 leakdist;
+extern lockable_bool forceprt1;
+extern lockable_bool omitdetail;
+extern lockable_bool omitdetailwall;
+extern lockable_bool omitdetailillusionary;
+extern lockable_bool omitdetailfence;
+extern lockable_bool expand;
 
-    struct wadpath
-    {
-        fs::path path;
-        bool external; // wads from this path are not to be embedded into the bsp, but will instead require the engine
-                       // to load them from elsewhere. strongly recommended for eg halflife.wad
+struct wadpath
+{
+    fs::path path;
+    bool external; // wads from this path are not to be embedded into the bsp, but will instead require the engine
+                   // to load them from elsewhere. strongly recommended for eg halflife.wad
 
-        inline bool operator<(const wadpath &other) const
-        {
-            return path < other.path;
-        }
-    };
-
-    struct lockable_wadpathset : public lockable_base
-    {
-    private:
-        std::set<wadpath>   _paths;
-
-    public:
-        inline lockable_wadpathset(const strings &names, const settings_group *group = nullptr, const char *description = "") : lockable_base(names, group, description) { }
-
-        inline lockable_wadpathset(const char *name, const settings_group *group = nullptr, const char *description = "") : lockable_wadpathset(strings{name}, group, description) { }
-
-        void addPath(const wadpath &path)
-        {
-            _paths.insert(path);
-        }
-
-        constexpr const std::set<wadpath> &pathsValue() const { return _paths; }
-
-        virtual bool parse(const std::string &settingName, parser_base_t &parser, bool locked = false) override
-        {
-            if (auto value = parseString(parser)) {
-                if (changeSource(locked ? source::COMMANDLINE : source::MAP)) {
-                    _paths.insert(wadpath { fs::path(*value), settingName[0] == 'x' });
-                }
-
-                return true;
-            }
-
-            return false;
-        }
-
-        virtual std::string stringValue() const
-        {
-            std::string paths;
-
-            for (auto &path : _paths) {
-                if (!paths.empty()) {
-                    paths += " ; ";
-                }
-
-                paths += path.path.string();
-
-                if (path.external) {
-                    paths += " (external)";
-                }
-            }
-
-            return paths;
-        }
-
-        virtual std::string format() const { return "path/to/wads"; }
-    };
-
-    extern lockable_wadpathset wadpaths;
+    inline bool operator<(const wadpath &other) const { return path < other.path; }
 };
+
+struct lockable_wadpathset : public lockable_base
+{
+private:
+    std::set<wadpath> _paths;
+
+public:
+    inline lockable_wadpathset(
+        const strings &names, const settings_group *group = nullptr, const char *description = "")
+        : lockable_base(names, group, description)
+    {
+    }
+
+    inline lockable_wadpathset(const char *name, const settings_group *group = nullptr, const char *description = "")
+        : lockable_wadpathset(strings{name}, group, description)
+    {
+    }
+
+    void addPath(const wadpath &path) { _paths.insert(path); }
+
+    constexpr const std::set<wadpath> &pathsValue() const { return _paths; }
+
+    virtual bool parse(const std::string &settingName, parser_base_t &parser, bool locked = false) override
+    {
+        if (auto value = parseString(parser)) {
+            if (changeSource(locked ? source::COMMANDLINE : source::MAP)) {
+                _paths.insert(wadpath{fs::path(*value), settingName[0] == 'x'});
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    virtual std::string stringValue() const
+    {
+        std::string paths;
+
+        for (auto &path : _paths) {
+            if (!paths.empty()) {
+                paths += " ; ";
+            }
+
+            paths += path.path.string();
+
+            if (path.external) {
+                paths += " (external)";
+            }
+        }
+
+        return paths;
+    }
+
+    virtual std::string format() const { return "path/to/wads"; }
+};
+
+extern lockable_wadpathset wadpaths;
+}; // namespace settings
 
 class options_t
 {
@@ -326,13 +327,13 @@ struct surface_t
             lmshift = min(f->lmshift.front, f->lmshift.back);
 
             if (!((f->contents[0].extended | f->contents[1].extended) &
-                (CFLAGS_DETAIL | CFLAGS_DETAIL_ILLUSIONARY | CFLAGS_DETAIL_FENCE | CFLAGS_WAS_ILLUSIONARY))) {
+                    (CFLAGS_DETAIL | CFLAGS_DETAIL_ILLUSIONARY | CFLAGS_DETAIL_FENCE | CFLAGS_WAS_ILLUSIONARY))) {
                 has_struct = true;
             }
 
             bounds += f->w.bounds();
 
-            //Q_assert(!qv::emptyExact(bounds.size()));
+            // Q_assert(!qv::emptyExact(bounds.size()));
         }
     }
 };
@@ -359,8 +360,8 @@ struct node_t
     portal_t *portals;
     int visleafnum; // -1 = solid
     int viscluster; // detail cluster for faster vis
-    int outside_distance; // -1 = can't reach outside, 0 = first void node, >0 = distance from void, in number of portals
-                          // used to write leak lines that take the shortest path to the void
+    int outside_distance; // -1 = can't reach outside, 0 = first void node, >0 = distance from void, in number of
+                          // portals used to write leak lines that take the shortest path to the void
     mapentity_t *occupant; // example occupant, for leak hunting
     bool detail_separator; // for vis portal generation. true if ALL faces on node, and on all descendant nodes/leafs,
                            // are detail.

@@ -44,46 +44,46 @@ int leafbytes_real; // (portalleafs_real+63)>>3, not used for Q2.
 
 namespace settings
 {
-    static settings_group output_group { "Output", 200 };
-    static settings_group advanced_group { "Advanced", 300 };
+static settings_group output_group{"Output", 200};
+static settings_group advanced_group{"Advanced", 300};
 
-    static lockable_bool fast { "fast", false, &performance_group, "run very simple & fast vis procedure" };
-    lockable_int32 level { "level", 4, 0, 4, &advanced_group, "number of iterations for tests" };
-    lockable_bool noambientsky { "noambientsky", false, &output_group, "don't output ambient sky sounds" };
-    lockable_bool noambientwater { "noambientwater", false, &output_group, "don't output ambient water sounds" };
-    lockable_bool noambientslime { "noambientslime", false, &output_group, "don't output ambient slime sounds" };
-    lockable_bool noambientlava { "noambientlava", false, &output_group, "don't output ambient lava sounds" };
-    static lockable_redirect noambient { "noambient", { &noambientsky, &noambientwater, &noambientslime, &noambientlava }, &output_group, "don't output ambient sounds at all" };
-    lockable_scalar visdist { "visdist", 0.0, &advanced_group, "control the distance required for a portal to be considered seen" };
-    lockable_bool nostate { "nostate", false, &advanced_group, "ignore saved state files, for forced re-runs" };
+static lockable_bool fast{"fast", false, &performance_group, "run very simple & fast vis procedure"};
+lockable_int32 level{"level", 4, 0, 4, &advanced_group, "number of iterations for tests"};
+lockable_bool noambientsky{"noambientsky", false, &output_group, "don't output ambient sky sounds"};
+lockable_bool noambientwater{"noambientwater", false, &output_group, "don't output ambient water sounds"};
+lockable_bool noambientslime{"noambientslime", false, &output_group, "don't output ambient slime sounds"};
+lockable_bool noambientlava{"noambientlava", false, &output_group, "don't output ambient lava sounds"};
+static lockable_redirect noambient{"noambient", {&noambientsky, &noambientwater, &noambientslime, &noambientlava},
+    &output_group, "don't output ambient sounds at all"};
+lockable_scalar visdist{
+    "visdist", 0.0, &advanced_group, "control the distance required for a portal to be considered seen"};
+lockable_bool nostate{"nostate", false, &advanced_group, "ignore saved state files, for forced re-runs"};
 
-    fs::path sourceMap;
+fs::path sourceMap;
 
-    inline void registerSettings()
-    {
-        globalSettings.addSettings({
-            &fast, &level, &noambientsky, &noambientwater, &noambientslime, &noambientlava,
-            &noambient, &visdist, &nostate
-        });
-    }
-
-    inline void compileSettings(int argc, const char **argv)
-    {
-        globalSettings.programName = fs::path(argv[0]).stem().string();
-        globalSettings.remainderName = "mapname.bsp";
-        registerSettings();
-
-        auto remainder = globalSettings.parse(token_parser_t(argc - 1, argv + 1));
-
-        if (remainder.size() <= 0 || remainder.size() > 1) {
-            globalSettings.printHelp();
-        }
-
-        sourceMap = DefaultExtension(remainder[0], "bsp");
-    
-        initGlobalSettings();
-    }
+inline void registerSettings()
+{
+    globalSettings.addSettings({&fast, &level, &noambientsky, &noambientwater, &noambientslime, &noambientlava,
+        &noambient, &visdist, &nostate});
 }
+
+inline void compileSettings(int argc, const char **argv)
+{
+    globalSettings.programName = fs::path(argv[0]).stem().string();
+    globalSettings.remainderName = "mapname.bsp";
+    registerSettings();
+
+    auto remainder = globalSettings.parse(token_parser_t(argc - 1, argv + 1));
+
+    if (remainder.size() <= 0 || remainder.size() > 1) {
+        globalSettings.printHelp();
+    }
+
+    sourceMap = DefaultExtension(remainder[0], "bsp");
+
+    initGlobalSettings();
+}
+} // namespace settings
 
 std::filesystem::path portalfile, statefile, statetmpfile;
 
@@ -469,8 +469,8 @@ void *LeafThread(void *arg)
 
         PortalCompleted(p);
 
-        LogPrint(LOG_VERBOSE,
-            "portal:{:4}  mightsee:{:4}  cansee:{:4}\n", (ptrdiff_t)(p - portals), p->nummightsee, p->numcansee);
+        LogPrint(LOG_VERBOSE, "portal:{:4}  mightsee:{:4}  cansee:{:4}\n", (ptrdiff_t)(p - portals), p->nummightsee,
+            p->numcansee);
     } while (1);
 
     return NULL;
@@ -628,8 +628,10 @@ void CalcPortalVis(const mbsp_t *bsp)
 
     SaveVisState();
 
-    LogPrint(LOG_VERBOSE, "portalcheck: {}  portaltest: {}  portalpass: {}\n", c_portalcheck, c_portaltest, c_portalpass);
-    LogPrint(LOG_VERBOSE, "c_vistest: {}  c_mighttest: {}  c_mightseeupdate {}\n", c_vistest, c_mighttest, c_mightseeupdate);
+    LogPrint(
+        LOG_VERBOSE, "portalcheck: {}  portaltest: {}  portalpass: {}\n", c_portalcheck, c_portaltest, c_portalpass);
+    LogPrint(
+        LOG_VERBOSE, "c_vistest: {}  c_mighttest: {}  c_mightseeupdate {}\n", c_vistest, c_mighttest, c_mightseeupdate);
 }
 
 /*

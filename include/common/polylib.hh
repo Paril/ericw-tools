@@ -230,7 +230,10 @@ public:
     inline winding_base_t(const winding_base_t &copy) : count(copy.count), data(copy.data) { }
 
     // move constructor
-    inline winding_base_t(winding_base_t &&move) noexcept : count(move.count), data(std::move(move.data)) { move.count = 0; }
+    inline winding_base_t(winding_base_t &&move) noexcept : count(move.count), data(std::move(move.data))
+    {
+        move.count = 0;
+    }
 
     // assignment copy
     inline winding_base_t &operator=(const winding_base_t &copy)
@@ -283,7 +286,7 @@ public:
     inline qvec3d &operator[](const size_t &index) { return at(index); }
 
     inline const qvec3d &operator[](const size_t &index) const { return at(index); }
-    
+
     using const_iterator = iterator_base<typename array_type::const_iterator, vector_type::const_iterator>;
 
     const const_iterator begin() const
@@ -428,7 +431,7 @@ public:
         qvec3d v2 = at(2) - at(1);
         qvec3d normal = qv::normalize(qv::cross(v1, v2));
 
-        return { normal, qv::dot(at(0), normal) };
+        return {normal, qv::dot(at(0), normal)};
     }
 
     static winding_base_t from_plane(const qplane3d &plane, const vec_t &worldextent)
@@ -550,10 +553,10 @@ public:
     }
 
     // dists/sides can be null, or must have (size() + 1) reserved
-    inline std::array<size_t, SIDE_TOTAL> calc_sides(const qplane3d &plane, vec_t *dists, side_t *sides,
-        const vec_t &on_epsilon = DEFAULT_ON_EPSILON) const
+    inline std::array<size_t, SIDE_TOTAL> calc_sides(
+        const qplane3d &plane, vec_t *dists, side_t *sides, const vec_t &on_epsilon = DEFAULT_ON_EPSILON) const
     {
-        std::array<size_t, SIDE_TOTAL> counts {};
+        std::array<size_t, SIDE_TOTAL> counts{};
 
         /* determine sides for each point */
         size_t i;
@@ -600,8 +603,8 @@ public:
     it will be clipped away.
     ==================
     */
-    std::array<std::optional<winding_base_t>, 2> clip(const qplane3d &plane,
-        const vec_t &on_epsilon = DEFAULT_ON_EPSILON, const bool &keepon = false) const
+    std::array<std::optional<winding_base_t>, 2> clip(
+        const qplane3d &plane, const vec_t &on_epsilon = DEFAULT_ON_EPSILON, const bool &keepon = false) const
     {
         vec_t *dists = (vec_t *)alloca(sizeof(vec_t) * (count + 1));
         side_t *sides = (side_t *)alloca(sizeof(side_t) * (count + 1));

@@ -168,7 +168,10 @@ void RunThreadsOn(int start, int workcnt, void *(func)(void *), void *arg)
     LogPrint("\n");
 }
 
-int GetDefaultThreads() { return 1; }
+int GetDefaultThreads()
+{
+    return 1;
+}
 
 #endif /* HAVE_THREADS */
 
@@ -185,7 +188,8 @@ void configureTBB(int maxthreads)
     tbbGlobalControl = std::unique_ptr<tbb::global_control>();
 
     if (maxthreads > 0) {
-        tbbGlobalControl = std::make_unique<tbb::global_control>(tbb::global_control::max_allowed_parallelism, maxthreads);
+        tbbGlobalControl =
+            std::make_unique<tbb::global_control>(tbb::global_control::max_allowed_parallelism, maxthreads);
         numthreads = maxthreads;
 
         LogPrint("running with {} thread(s)\n", numthreads);

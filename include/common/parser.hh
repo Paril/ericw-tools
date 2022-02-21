@@ -53,7 +53,7 @@ struct parser_base_t
     virtual bool parse_token(parseflags flags = PARSE_NORMAL) = 0;
 
     virtual bool at_end() const = 0;
-    
+
     virtual void push_state() = 0;
 
     virtual void pop_state() = 0;
@@ -69,7 +69,10 @@ struct parser_t : parser_base_t
     uint32_t linenum = 1;
 
     // base constructor; accept raw start & length
-    inline parser_t(const void *start, size_t length) : pos(reinterpret_cast<const char *>(start)), end(reinterpret_cast<const char *>(start) + length) { }
+    inline parser_t(const void *start, size_t length)
+        : pos(reinterpret_cast<const char *>(start)), end(reinterpret_cast<const char *>(start) + length)
+    {
+    }
 
     // pull from string_view; note that the string view must live for the entire
     // duration of the parser's life time
@@ -92,7 +95,11 @@ private:
 public:
     virtual void push_state() override { _states.push_back(state()); }
 
-    virtual void pop_state() override { state() = _states.back(); _states.pop_back(); }
+    virtual void pop_state() override
+    {
+        state() = _states.back();
+        _states.pop_back();
+    }
 };
 
 // a parser that works on a list of tokens
@@ -101,10 +108,7 @@ struct token_parser_t : parser_base_t
     std::vector<std::string_view> tokens;
     size_t cur = 0;
 
-    inline token_parser_t(int argc, const char **args) :
-        tokens(args, args + argc)
-    {
-    }
+    inline token_parser_t(int argc, const char **args) : tokens(args, args + argc) { }
 
     using state_type = decltype(std::tie(cur));
 
@@ -142,5 +146,9 @@ private:
 public:
     virtual void push_state() override { _states.push_back(state()); }
 
-    virtual void pop_state() override { state() = _states.back(); _states.pop_back(); }
+    virtual void pop_state() override
+    {
+        state() = _states.back();
+        _states.pop_back();
+    }
 };

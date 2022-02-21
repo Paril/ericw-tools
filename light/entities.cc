@@ -398,7 +398,7 @@ static void SetupSun(const globalconfig_t &cfg, vec_t light, const qvec3d &color
     int sun_num_samples = (sun_deviance == 0 ? 1 : settings::sunsamples.value()); // mxd
     vec_t sun_deviance_rad = DEG2RAD(sun_deviance); // mxd
     vec_t sun_deviance_sq = sun_deviance * sun_deviance; // mxd
-    
+
     qvec3d sunvec = qv::normalize(sunvec_in);
 
     // fmt::print( "input sunvec {} {} {}. deviance is {}, {} samples\n",sunvec[0],sunvec[1], sunvec[2], sun_deviance,
@@ -458,21 +458,20 @@ static void SetupSuns(const globalconfig_t &cfg)
 
             // Add the sun
             SetupSun(cfg, entity.light.value(), entity.color.value(), sunvec, entity.anglescale.value(),
-                entity.deviance.value(), entity.dirt.value(), entity.style.value(),
-                entity.suntexture.value());
+                entity.deviance.value(), entity.dirt.value(), entity.style.value(), entity.suntexture.value());
 
             // Disable the light itself...
             entity.light.setValue(0.0f);
         }
     }
 
-    SetupSun(cfg, cfg.sunlight.value(), cfg.sunlight_color.value(), cfg.sunvec.value(),
-        cfg.global_anglescale.value(), cfg.sun_deviance.value(), cfg.sunlight_dirt.value(), 0, "");
+    SetupSun(cfg, cfg.sunlight.value(), cfg.sunlight_color.value(), cfg.sunvec.value(), cfg.global_anglescale.value(),
+        cfg.sun_deviance.value(), cfg.sunlight_dirt.value(), 0, "");
 
     if (cfg.sun2.value() != 0) {
         LogPrint("creating sun2\n");
-        SetupSun(cfg, cfg.sun2.value(), cfg.sun2_color.value(), cfg.sun2vec.value(),
-            cfg.global_anglescale.value(), cfg.sun_deviance.value(), cfg.sunlight_dirt.value(), 0, "");
+        SetupSun(cfg, cfg.sun2.value(), cfg.sun2_color.value(), cfg.sun2vec.value(), cfg.global_anglescale.value(),
+            cfg.sun_deviance.value(), cfg.sunlight_dirt.value(), 0, "");
     }
 }
 
@@ -557,11 +556,13 @@ static void SetupSkyDome(const globalconfig_t &cfg, vec_t upperLight, const qvec
 
     /* create vertical sun */
     if (sunlight2value > 0) {
-        AddSun(cfg, { 0.0, 0.0, -1.0 }, sunlight2value, upperColor, upperDirt, upperAnglescale, upperStyle, upperSuntexture);
+        AddSun(
+            cfg, {0.0, 0.0, -1.0}, sunlight2value, upperColor, upperDirt, upperAnglescale, upperStyle, upperSuntexture);
     }
 
     if (sunlight3value > 0) {
-        AddSun(cfg, { 0.0, 0.0, 1.0 }, sunlight3value, lowerColor, lowerDirt, lowerAnglescale, lowerStyle, lowerSuntexture);
+        AddSun(
+            cfg, {0.0, 0.0, 1.0}, sunlight3value, lowerColor, lowerDirt, lowerAnglescale, lowerStyle, lowerSuntexture);
     }
 }
 
@@ -578,13 +579,11 @@ static void SetupSkyDomes(const globalconfig_t &cfg)
             if (entity.sunlight2.value()) {
                 // Add the upper dome, like sunlight2 (pointing down)
                 SetupSkyDome(cfg, entity.light.value(), entity.color.value(), entity.dirt.value(),
-                    entity.anglescale.value(), entity.style.value(), entity.suntexture.value(), 0,
-                             {}, 0, 0, 0, "");
+                    entity.anglescale.value(), entity.style.value(), entity.suntexture.value(), 0, {}, 0, 0, 0, "");
             } else {
                 // Add the lower dome, like sunlight3 (pointing up)
-                SetupSkyDome(cfg, 0, {}, 0, 0, 0, "", entity.light.value(), entity.color.value(),
-                    entity.dirt.value(), entity.anglescale.value(), entity.style.value(),
-                    entity.suntexture.value());
+                SetupSkyDome(cfg, 0, {}, 0, 0, 0, "", entity.light.value(), entity.color.value(), entity.dirt.value(),
+                    entity.anglescale.value(), entity.style.value(), entity.suntexture.value());
             }
 
             // Disable the light itself...
@@ -951,8 +950,7 @@ void LoadEntities(const globalconfig_t &cfg, const mbsp_t *bsp)
                 entity.projectedmip = img::find(texname);
                 if (entity.projectedmip == nullptr) {
                     LogPrint(
-                        "WARNING: light has \"_project_texture\" \"{}\", but this texture was not found\n",
-                        texname);
+                        "WARNING: light has \"_project_texture\" \"{}\", but this texture was not found\n", texname);
                 }
 
                 if (!entity.projangle.isChanged()) { // mxd
@@ -969,11 +967,13 @@ void LoadEntities(const globalconfig_t &cfg, const mbsp_t *bsp)
                 if (entity.projectedmip->meta.width > entity.projectedmip->meta.height)
                     Matrix4x4_CM_MakeModelViewProj(entity.projangle.value(), entity.origin.value(),
                         entity.projfov.value(),
-                        CalcFov(entity.projfov.value(), entity.projectedmip->meta.width, entity.projectedmip->meta.height),
+                        CalcFov(
+                            entity.projfov.value(), entity.projectedmip->meta.width, entity.projectedmip->meta.height),
                         entity.projectionmatrix);
                 else
                     Matrix4x4_CM_MakeModelViewProj(entity.projangle.value(), entity.origin.value(),
-                        CalcFov(entity.projfov.value(), entity.projectedmip->meta.height, entity.projectedmip->meta.width),
+                        CalcFov(
+                            entity.projfov.value(), entity.projectedmip->meta.height, entity.projectedmip->meta.width),
                         entity.projfov.value(), entity.projectionmatrix);
             }
 
@@ -1031,12 +1031,8 @@ inline qvec3d UniformPointOnSphere(vec_t u1, vec_t u2)
     const vec_t u = (2.0 * u2) - 1.0;
 
     const vec_t s = sqrt(1.0 - (u * u));
-    
-    qvec3d dir {
-        s * cos(theta),
-        s * sin(theta),
-        u
-    };
+
+    qvec3d dir{s * cos(theta), s * sin(theta), u};
 
     for (auto &v : dir) {
         Q_assert(v >= -1.001);

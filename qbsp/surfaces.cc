@@ -48,8 +48,7 @@ std::list<face_t *>::iterator SubdivideFace(std::list<face_t *>::iterator it, st
     /* special (non-surface cached) faces don't need subdivision */
     tex = &map.mtexinfos.at(f->texinfo);
 
-    if (tex->flags.is_skip || tex->flags.is_hint ||
-        !options.target_game->surf_is_subdivided(tex->flags)) {
+    if (tex->flags.is_skip || tex->flags.is_hint || !options.target_game->surf_is_subdivided(tex->flags)) {
         return it;
     }
     // subdivision is pretty much pointless other than because of lightmap block limits
@@ -94,7 +93,7 @@ std::list<face_t *>::iterator SubdivideFace(std::list<face_t *>::iterator it, st
             // split it
             plane.normal = tmp;
             v = qv::normalizeInPlace(plane.normal);
-            
+
             // ericw -- reverted this, was causing https://github.com/ericwa/ericw-tools/issues/160
             //            if (subdiv > extent/2)      /* if we're near a boundary, just split the difference, this
             //            should balance the load slightly */
@@ -119,7 +118,7 @@ std::list<face_t *>::iterator SubdivideFace(std::list<face_t *>::iterator it, st
     return it;
 }
 
-static void FreeNode(node_t* node)
+static void FreeNode(node_t *node)
 {
     for (face_t *f : node->facelist) {
         delete f;
@@ -127,7 +126,7 @@ static void FreeNode(node_t* node)
     delete node;
 }
 
-void FreeNodes(node_t* node)
+void FreeNodes(node_t *node)
 {
     if (node->planenum != PLANENUM_LEAF) {
         FreeNodes(node->children[0]);
@@ -371,7 +370,7 @@ EmitFaceFragment
 static void EmitFaceFragment(mapentity_t *entity, face_t *face, face_fragment_t *fragment)
 {
     int i;
-    
+
     // emit a region
     Q_assert(!fragment->outputnumber.has_value());
     fragment->outputnumber = map.bsp.dfaces.size();
@@ -391,7 +390,8 @@ static void EmitFaceFragment(mapentity_t *entity, face_t *face, face_fragment_t 
 
     // emit surfedges
     out.firstedge = static_cast<int32_t>(map.bsp.dsurfedges.size());
-    std::copy(fragment->edges.cbegin(), fragment->edges.cbegin() + fragment->w.size(), std::back_inserter(map.bsp.dsurfedges));
+    std::copy(fragment->edges.cbegin(), fragment->edges.cbegin() + fragment->w.size(),
+        std::back_inserter(map.bsp.dsurfedges));
     fragment->edges.clear();
 
     out.numedges = static_cast<int32_t>(map.bsp.dsurfedges.size()) - out.firstedge;

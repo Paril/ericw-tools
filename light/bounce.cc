@@ -128,8 +128,8 @@ qvec3b Face_LookupTextureColor(const mbsp_t *bsp, const mface_t *face)
     if (it) {
         return it->meta.averageColor;
     }
-    
-    return { 127 };
+
+    return {127};
 }
 
 template<typename T>

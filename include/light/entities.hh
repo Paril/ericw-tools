@@ -79,7 +79,7 @@ public:
     settings::lockable_scalar dirtgain{"dirtgain", 0};
     settings::lockable_scalar dirt{"dirt", 0};
     settings::lockable_scalar deviance{"deviance", 0};
-    settings::lockable_int32 samples{"samples", 16, 0, std::numeric_limits<int32_t>::max() };
+    settings::lockable_int32 samples{"samples", 16, 0, std::numeric_limits<int32_t>::max()};
     settings::lockable_scalar projfov{"project_fov", 90};
     settings::lockable_scalar bouncescale{"bouncescale", 1.0};
     settings::lockable_scalar dirt_off_radius{"dirt_off_radius", 0.0};
@@ -97,14 +97,12 @@ public:
     settings::lockable_string suntexture{"suntexture", ""};
     settings::lockable_bool nostaticlight{"nostaticlight", false};
 
-    settings::dict settings {
-        &light, &atten, &formula, &spotangle, &spotangle2, &style, &bleed, &anglescale, &dirtscale, &dirtgain,
-        &dirt, &deviance, &samples, &projfov, &bouncescale, &dirt_off_radius, &dirt_on_radius,
+    settings::dict settings{&light, &atten, &formula, &spotangle, &spotangle2, &style, &bleed, &anglescale, &dirtscale,
+        &dirtgain, &dirt, &deviance, &samples, &projfov, &bouncescale, &dirt_off_radius, &dirt_on_radius,
         &sun, // mxd
         &sunlight2, &sunlight3,
         &falloff, // mxd
-        &origin, &color, &mangle, &projangle, &project_texture, &suntexture, &nostaticlight
-    };
+        &origin, &color, &mangle, &projangle, &project_texture, &suntexture, &nostaticlight};
 
     const char *classname() const;
 
