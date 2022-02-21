@@ -408,6 +408,9 @@ namespace settings
 
         virtual std::string format() const override { return "n"; }
     };
+    
+    using lockable_scalar = lockable_numeric<vec_t>;
+    using lockable_int32 = lockable_numeric<int32_t>;
 
     template<typename T>
     class lockable_enum : public lockable_value<T>
@@ -466,9 +469,6 @@ namespace settings
             return false;
         }
     };
-    
-    using lockable_scalar = lockable_numeric<vec_t>;
-    using lockable_int32 = lockable_numeric<int32_t>;
 
     class lockable_string : public lockable_value<std::string>
     {
