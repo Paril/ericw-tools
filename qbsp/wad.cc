@@ -62,7 +62,7 @@ static bool WAD_LoadInfo(wad_t &wad, bool external)
     int i, len;
     dmiptex_t miptex;
 
-    external |= settings::notextures.value();
+    external |= options.notextures.value();
 
     len = SafeRead(wad.file, hdr, sizeof(wadinfo_t));
     if (len != sizeof(wadinfo_t))
@@ -166,10 +166,10 @@ void WADList_Init(const char *wadstring)
         memcpy(&fpathstr[0], fname, fpathLen);
         std::filesystem::path fpath = fpathstr;
 
-        if (settings::wadpaths.pathsValue().empty() || fpath.is_absolute()) {
+        if (options.wadpaths.pathsValue().empty() || fpath.is_absolute()) {
             WADList_OpenWad(fpath, false);
         } else {
-            for (auto &wadpath : settings::wadpaths.pathsValue()) {
+            for (auto &wadpath : options.wadpaths.pathsValue()) {
                 WADList_OpenWad(wadpath.path / fpath, wadpath.external);
             }
         }

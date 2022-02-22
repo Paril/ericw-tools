@@ -222,7 +222,7 @@ int FindMiptex(const char *name, std::optional<extended_texinfo_t> &extended_inf
 
 static bool IsSkipName(const char *name)
 {
-    if (settings::noskip.value())
+    if (options.noskip.value())
         return false;
     if (!Q_strcasecmp(name, "skip"))
         return true;
@@ -248,9 +248,9 @@ static bool IsNoExpandName(const char *name)
 
 static bool IsSpecialName(const char *name)
 {
-    if (name[0] == '*' && !settings::splitturb.value())
+    if (name[0] == '*' && !options.splitturb.value())
         return true;
-    if (!Q_strncasecmp(name, "sky", 3) && !settings::splitsky.value())
+    if (!Q_strncasecmp(name, "sky", 3) && !options.splitsky.value())
         return true;
     return false;
 }
@@ -471,7 +471,7 @@ static void TextureAxisFromPlane(const qbsp_plane_t &plane, qvec3d &xv, qvec3d &
 
     for (i = 0; i < 6; i++) {
         dot = qv::dot(plane.normal, baseaxis[i * 3]);
-        if (dot > best || (dot == best && !settings::oldaxis.value())) {
+        if (dot > best || (dot == best && !options.oldaxis.value())) {
             best = dot;
             bestaxis = i;
         }
@@ -1687,7 +1687,7 @@ static void TranslateMapFace(mapface_t *face, const qvec3d &offset)
 
 void ProcessExternalMapEntity(mapentity_t *entity)
 {
-    Q_assert(!settings::onlyents.value());
+    Q_assert(!options.onlyents.value());
 
     const char *classname = ValueForKey(entity, "classname");
     if (Q_strcasecmp(classname, "misc_external_map"))
@@ -1745,7 +1745,7 @@ void ProcessExternalMapEntity(mapentity_t *entity)
 
 void ProcessAreaPortal(mapentity_t *entity)
 {
-    Q_assert(!settings::onlyents.value());
+    Q_assert(!options.onlyents.value());
 
     const char *classname = ValueForKey(entity, "classname");
 
@@ -1901,7 +1901,7 @@ void LoadMapFile(void)
     LogPrint(LOG_STAT, "     {:8} texinfo\n", map.numtexinfo());
     LogPrint(LOG_STAT, "\n");
 
-    if (settings::expand.value()) {
+    if (options.expand.value()) {
         TestExpandBrushes(pWorldEnt());
     }
 }
@@ -2065,7 +2065,7 @@ void ConvertMapFile(void)
 
     std::string append;
 
-    switch (settings::convertmapformat.value()) {
+    switch (options.convertmapformat.value()) {
         case conversion_t::quake: append = "-quake"; break;
         case conversion_t::quake2: append = "-quake2"; break;
         case conversion_t::valve: append = "-valve"; break;
@@ -2082,7 +2082,7 @@ void ConvertMapFile(void)
         FError("Couldn't open file\n");
 
     for (const mapentity_t &entity : map.entities) {
-        ConvertEntity(f, &entity, settings::convertmapformat.value());
+        ConvertEntity(f, &entity, options.convertmapformat.value());
     }
 
     LogPrint("Conversion saved to {}\n", filename);
@@ -2240,7 +2240,7 @@ void CalculateWorldExtent(void)
         }
     }
 
-    settings::worldextent.setValueLocked((extents + hull_extents) * 2);
+    options.worldextent.setValueLocked((extents + hull_extents) * 2);
 }
 
 /*

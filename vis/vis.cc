@@ -44,46 +44,22 @@ int leafbytes_real; // (portalleafs_real+63)>>3, not used for Q2.
 
 namespace settings
 {
-static settings_group output_group{"Output", 200};
-static settings_group advanced_group{"Advanced", 300};
+settings_group output_group{"Output", 200};
+settings_group advanced_group{"Advanced", 300};
 
-static lockable_bool fast{"fast", false, &performance_group, "run very simple & fast vis procedure"};
-lockable_int32 level{"level", 4, 0, 4, &advanced_group, "number of iterations for tests"};
-lockable_bool noambientsky{"noambientsky", false, &output_group, "don't output ambient sky sounds"};
-lockable_bool noambientwater{"noambientwater", false, &output_group, "don't output ambient water sounds"};
-lockable_bool noambientslime{"noambientslime", false, &output_group, "don't output ambient slime sounds"};
-lockable_bool noambientlava{"noambientlava", false, &output_group, "don't output ambient lava sounds"};
-static lockable_redirect noambient{"noambient", {&noambientsky, &noambientwater, &noambientslime, &noambientlava},
-    &output_group, "don't output ambient sounds at all"};
-lockable_scalar visdist{
-    "visdist", 0.0, &advanced_group, "control the distance required for a portal to be considered seen"};
-lockable_bool nostate{"nostate", false, &advanced_group, "ignore saved state files, for forced re-runs"};
-
-fs::path sourceMap;
-
-inline void registerSettings()
+void vis_settings::initialize(int argc, const char **argv)
 {
-    globalSettings.addSettings({&fast, &level, &noambientsky, &noambientwater, &noambientslime, &noambientlava,
-        &noambient, &visdist, &nostate});
-}
-
-inline void compileSettings(int argc, const char **argv)
-{
-    globalSettings.programName = fs::path(argv[0]).stem().string();
-    globalSettings.remainderName = "mapname.bsp";
-    registerSettings();
-
-    auto remainder = globalSettings.parse(token_parser_t(argc - 1, argv + 1));
+    auto remainder = parse(token_parser_t(argc, argv));
 
     if (remainder.size() <= 0 || remainder.size() > 1) {
-        globalSettings.printHelp();
+        printHelp();
     }
-
+    
     sourceMap = DefaultExtension(remainder[0], "bsp");
-
-    initGlobalSettings();
 }
 } // namespace settings
+
+settings::vis_settings options;
 
 std::filesystem::path portalfile, statefile, statetmpfile;
 
@@ -608,7 +584,7 @@ void CalcPortalVis(const mbsp_t *bsp)
     portal_t *p;
 
     // fastvis just uses mightsee for a very loose bound
-    if (settings::fast.value()) {
+    if (options.fast.value()) {
         for (i = 0; i < numportals * 2; i++) {
             portals[i].visbits = portals[i].mightsee;
             portals[i].status = pstat_done;
@@ -880,29 +856,27 @@ int main(int argc, const char **argv)
     InitLog("vis.log");
     LogPrint("---- vis / ericw-tools " stringify(ERICWTOOLS_VERSION) " ----\n");
 
+    options.run(argc, argv);
+
     LowerProcessPriority();
-
-    settings::compileSettings(argc, argv);
-
-    settings::globalSettings.printSummary();
 
     stateinterval = std::chrono::minutes(5); /* 5 minutes */
     starttime = statetime = I_FloatTime();
 
-    LoadBSPFile(settings::sourceMap, &bspdata);
+    LoadBSPFile(options.sourceMap, &bspdata);
 
-    bspdata.version->game->init_filesystem(settings::sourceMap);
+    bspdata.version->game->init_filesystem(options.sourceMap);
 
     loadversion = bspdata.version;
     ConvertBSPFormat(&bspdata, &bspver_generic);
 
     mbsp_t &bsp = std::get<mbsp_t>(bspdata.bsp);
 
-    portalfile = fs::path(settings::sourceMap).replace_extension("prt");
+    portalfile = fs::path(options.sourceMap).replace_extension("prt");
     LoadPortals(portalfile, &bsp);
 
-    statefile = fs::path(settings::sourceMap).replace_extension("vis");
-    statetmpfile = fs::path(settings::sourceMap).replace_extension("vi0");
+    statefile = fs::path(options.sourceMap).replace_extension("vis");
+    statetmpfile = fs::path(options.sourceMap).replace_extension("vi0");
 
     if (bsp.loadversion->game->id != GAME_QUAKE_II) {
         uncompressed = new uint8_t[portalleafs * leafbytes_real]{};
@@ -931,7 +905,7 @@ int main(int argc, const char **argv)
     /* Convert data format back if necessary */
     ConvertBSPFormat(&bspdata, loadversion);
 
-    WriteBSPFile(settings::sourceMap, &bspdata);
+    WriteBSPFile(options.sourceMap, &bspdata);
 
     endtime = I_FloatTime();
     LogPrint("{:.2} elapsed\n", (endtime - starttime));

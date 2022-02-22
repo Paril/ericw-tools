@@ -61,7 +61,7 @@ std::list<face_t *>::iterator SubdivideFace(std::list<face_t *>::iterator it, st
 
     // legacy engines support 18*18 max blocks (at 1:16 scale).
     // the 18*18 limit can be relaxed in certain engines, and doing so will generally give a performance boost.
-    subdiv = min(settings::subdivide.value(), 255 << lmshift);
+    subdiv = min(options.subdivide.value(), 255 << lmshift);
 
     //      subdiv += 8;
 
@@ -329,7 +329,7 @@ FindFaceEdges
 */
 static void FindFaceEdges(mapentity_t *entity, face_t *face)
 {
-    if (!settings::includeskip.value() && map.mtexinfos.at(face->texinfo).flags.is_skip)
+    if (!options.includeskip.value() && map.mtexinfos.at(face->texinfo).flags.is_skip)
         return;
     if (map.mtexinfos.at(face->texinfo).flags.is_hint)
         return;
@@ -404,7 +404,7 @@ EmitFace
 */
 static void EmitFace(mapentity_t *entity, face_t *face)
 {
-    if (!settings::includeskip.value() && map.mtexinfos.at(face->texinfo).flags.is_skip)
+    if (!options.includeskip.value() && map.mtexinfos.at(face->texinfo).flags.is_skip)
         return;
     if (map.mtexinfos.at(face->texinfo).flags.is_hint)
         return;
@@ -443,7 +443,7 @@ static void GrowNodeRegion(mapentity_t *entity, node_t *node)
 
 static void CountFace(mapentity_t *entity, face_t *f, size_t &facesCount, size_t &vertexesCount)
 {
-    if (!settings::includeskip.value() && map.mtexinfos.at(f->texinfo).flags.is_skip)
+    if (!options.includeskip.value() && map.mtexinfos.at(f->texinfo).flags.is_skip)
         return;
     if (map.mtexinfos.at(f->texinfo).flags.is_hint)
         return;

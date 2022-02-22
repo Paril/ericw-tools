@@ -269,7 +269,7 @@ static void RecursiveLeafFlow(int leafnum, threaddata_t *thread, pstack_t *prevs
         c_portaltest++;
 
         /* TEST 0 :: source -> pass -> target */
-        if (settings::level.value() > 0) {
+        if (options.level.value() > 0) {
             if (stack.numseparators[0]) {
                 for (j = 0; j < stack.numseparators[0]; j++) {
                     stack.pass = ClipStackWinding(stack.pass, &stack, &stack.separators[0][j]);
@@ -288,7 +288,7 @@ static void RecursiveLeafFlow(int leafnum, threaddata_t *thread, pstack_t *prevs
         }
 
         /* TEST 1 :: pass -> source -> target */
-        if (settings::level.value() > 1) {
+        if (options.level.value() > 1) {
             if (stack.numseparators[1]) {
                 for (j = 0; j < stack.numseparators[1]; j++) {
                     stack.pass = ClipStackWinding(stack.pass, &stack, &stack.separators[1][j]);
@@ -306,7 +306,7 @@ static void RecursiveLeafFlow(int leafnum, threaddata_t *thread, pstack_t *prevs
         }
 
         /* TEST 2 :: target -> pass -> source */
-        if (settings::level.value() > 2) {
+        if (options.level.value() > 2) {
             ClipToSeparators(stack.pass, stack.portalplane, prevstack->pass, stack.source, 2, &stack);
             if (!stack.source) {
                 FreeStackWinding(stack.pass, &stack);
@@ -315,7 +315,7 @@ static void RecursiveLeafFlow(int leafnum, threaddata_t *thread, pstack_t *prevs
         }
 
         /* TEST 3 :: pass -> target -> source */
-        if (settings::level.value() > 3) {
+        if (options.level.value() > 3) {
             ClipToSeparators(prevstack->pass, prevstack->portalplane, stack.pass, stack.source, 3, &stack);
             if (!stack.source) {
                 FreeStackWinding(stack.pass, &stack);
@@ -441,9 +441,9 @@ static void *BasePortalThread(void *dummy)
             if (j == w.size())
                 continue; // no points on back
 
-            if (settings::visdist.value() > 0) {
-                if (tp->winding->distFromPortal(p) > settings::visdist.value() ||
-                    p->winding->distFromPortal(tp) > settings::visdist.value())
+            if (options.visdist.value() > 0) {
+                if (tp->winding->distFromPortal(p) > options.visdist.value() ||
+                    p->winding->distFromPortal(tp) > options.visdist.value())
                     continue;
             }
 

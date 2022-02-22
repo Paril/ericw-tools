@@ -19,20 +19,22 @@
 
 #include "common/settings.hh"
 #include "common/threads.hh"
+#include "common/fs.hh"
 
 namespace settings
 {
-// global settings
+lockable_base::lockable_base(dict *dictionary, const strings &names, const settings_group *group, const char *description)
+    : _names(names), _group(group), _description(description)
+{
+    Q_assert(_names.size() > 0);
+
+    if (dictionary) {
+        dictionary->registerSetting(this);
+    }
+}
+
 settings_group performance_group{"Performance", 10};
-lockable_int32 threads{"threads", 0, &performance_group, "number of threads to use, maximum; leave 0 for automatic"};
-
 settings_group logging_group{"Logging", 5};
-lockable_bool verbose{strings{"verbose", "v"}, false, &logging_group, "verbose output"};
-lockable_bool quiet{strings{"quiet", "noverbose"}, false, &logging_group, "suppress non-important output"};
-lockable_bool nopercent{"nopercent", false, &logging_group, "don't output percentage messages"};
-
-// global settings dict, used by all tools
-dict globalSettings{&threads, &verbose, &quiet, &nopercent};
 
 [[noreturn]] void dict::printHelp()
 {
@@ -131,8 +133,15 @@ std::vector<std::string> dict::parse(parser_base_t &parser)
     return remainder;
 }
 
-void initGlobalSettings()
+void common_settings::setParameters(int argc, const char **argv)
 {
+    programName = fs::path(argv[0]).stem().string();
+}
+
+void common_settings::postinitialize(int argc, const char **argv)
+{
+    printSummary();
+
     configureTBB(threads.value());
 
     if (verbose.value()) {

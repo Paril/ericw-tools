@@ -39,126 +39,111 @@ constexpr const char *IntroString = "---- qbsp / ericw-tools " stringify(ERICWTO
 // command line flags
 namespace settings
 {
-static settings_group game_target_group{"Game/BSP Target", -1};
-static settings_group map_development_group{"Map development", 1};
-static settings_group common_format_group{"Common format options", 2};
-static settings_group debugging_group{"Advanced/tool debugging", 500};
+settings_group game_target_group{"Game/BSP Target", -1};
+settings_group map_development_group{"Map development", 1};
+settings_group common_format_group{"Common format options", 2};
+settings_group debugging_group{"Advanced/tool debugging", 500};
 
-static lockable_bool hexen2{"hexen2", false, &game_target_group, "target Hexen II's BSP format"};
-static lockable_bool hlbsp{"hlbsp", false, &game_target_group, "target Half Life's BSP format"};
-static lockable_bool q2bsp{"q2bsp", false, &game_target_group, "target Quake II's BSP format"};
-static lockable_bool qbism{"qbism", false, &game_target_group, "target Qbism's extended Quake II BSP format"};
-static lockable_bool bsp2{"bsp2", false, &game_target_group, "target Quake's extended BSP2 format"};
-static lockable_bool bsp2rmq{"2psb", false, &game_target_group, "target Quake's extended 2PSB format (RMQ compatible)"};
-lockable_int32 subdivide{"subdivide", 240, &common_format_group,
-    "change the subdivide threshold, in luxels. 0 will disable subdivision entirely"};
-static lockable_bool nofill{"nofill", false, &debugging_group, "don't perform outside filling"};
-static lockable_bool noclip{"noclip", false, &common_format_group, "don't write clip nodes (Q1-like BSP formats)"};
-lockable_bool noskip{"noskip", false, &debugging_group, "don't remove faces with the 'skip' texture"};
-lockable_bool nodetail{"nodetail", false, &debugging_group, "treat all detail brushes to structural"};
-lockable_bool onlyents{"onlyents", false, &map_development_group, "only updates .MAP entities"};
-lockable_bool splitsky{"splitsky", false, &debugging_group, "doesn't combine sky faces into one large face"};
-lockable_bool splitturb{
-    strings{"litwater", "splitturb"}, false, &common_format_group, "doesn't combine water faces into one large face"};
-static lockable_redirect splitspecial{"splitspecial", {&splitsky, &splitturb}, &debugging_group,
-    "doesn't combine sky and water faces into one large face (splitturb + splitsky)"};
-lockable_invertable_bool transwater{
-    "transwater", true, &common_format_group, "compute portal information for transparent water"};
-lockable_bool transsky{"transsky", false, &map_development_group, "compute portal information for transparent sky"};
-lockable_bool notextures{"notex", false, &common_format_group,
-    "write only placeholder textures to depend upon replacements, keep file sizes down, or to skirt copyrights"};
-lockable_enum<conversion_t> convertmapformat{"convert", conversion_t::none,
-    {{"quake", conversion_t::quake}, {"quake2", conversion_t::quake2}, {"valve", conversion_t::valve},
-        {"bp", conversion_t::bp}},
-    &common_format_group, "convert a .MAP to a different .MAP format"};
-lockable_invertable_bool oldaxis{"oldaxis", true, &debugging_group,
-    "uses alternate texture alignment which was default in tyrutils-ericw v0.15.1 and older"};
-lockable_bool forcegoodtree{
-    "forcegoodtree", false, &debugging_group, "force use of expensive processing for SolidBSP stage"};
-lockable_scalar midsplitsurffraction{"midsplitsurffraction", 0.f, 0.f, 1.f, &debugging_group,
-    "if 0 (default), use `maxnodesize` for deciding when to switch to midsplit bsp heuristic.\nif 0 < midsplitSurfFraction <= 1, switch to midsplit if the node contains more than this fraction of the model's\ntotal surfaces. Try 0.15 to 0.5. Works better than maxNodeSize for maps with a 3D skybox (e.g. +-128K unit maps)"};
-lockable_int32 maxnodesize{"maxnodesize", 1024, &debugging_group,
-    "triggers simpler BSP Splitting when node exceeds size (default 1024, 0 to disable)"};
-lockable_bool oldrottex{"oldrottex", false, &debugging_group, "use old rotate_ brush texturing aligned at (0 0 0)"};
-lockable_scalar epsilon{
-    "epsilon", 0.0001, 0.0, 1.0, &debugging_group, "customize epsilon value for point-on-plane checks"};
-lockable_bool contenthack{"contenthack", false, &debugging_group,
-    "hack to fix leaks through solids. causes missing faces in some cases so disabled by default"};
-lockable_bool leaktest{"leaktest", false, &map_development_group, "make compilation fail if the map leaks"};
-lockable_bool includeskip{
-    "includeskip", false, &common_format_group, "don't cull skip faces from the list of renderable surfaces (Q2RTX)"};
-lockable_scalar worldextent{
-    "worldextent", 0.0, &debugging_group, "explicitly provide world extents; 0 will auto-detect"};
-lockable_int32 leakdist{"leakdist", 2, &debugging_group, "space between leakfile points"};
-lockable_bool forceprt1{
-    "forceprt1", false, &debugging_group, "force a PRT1 output file even if PRT2 is required for vis"};
-static lockable_bool notjunc{"notjunc", false, &debugging_group, "don't fix T-junctions"};
-static lockable_bool objexport{
-    "objexport", false, &debugging_group, "export the map file as .OBJ models during various CSG phases"};
-static lockable_bool wrbrushes{
-    strings{"wrbrushes", "bspx"}, false, &common_format_group, "includes a list of brushes for brush-based collision"};
-static lockable_redirect wrbrushesonly{strings{"wrbrushesonly", "bspxonly"}, {&wrbrushes, &noclip},
-    &common_format_group, "includes BSPX brushes and does not output clipping hulls (wrbrushes + noclip)"};
-lockable_bool omitdetail{"omitdetail", false, &map_development_group, "omit *all* detail brushes from the compile"};
-lockable_bool omitdetailwall{
-    "omitdetailwall", false, &map_development_group, "func_detail_wall brushes are omitted from the compile"};
-lockable_bool omitdetailillusionary{"omitdetailillusionary", false, &map_development_group,
-    "func_detail_illusionary brushes are omitted from the compile"};
-lockable_bool omitdetailfence{
-    "omitdetailfence", false, &map_development_group, "func_detail_fence brushes are omitted from the compile"};
-lockable_bool expand{
-    "expand", false, &common_format_group, "write hull 1 expanded brushes to expanded.map for debugging"};
-lockable_wadpathset wadpaths{strings{"wadpath", "xwadpath"}, &debugging_group,
-    "add a path to the wad search paths; wads found in xwadpath's will not be embedded, otherwise they will be embedded (if not -notex)"};
-
-inline void registerSettings()
+inline void set_target_version(const bspversion_t *version)
 {
-    globalSettings.addSettings({
-        &hexen2,
-        &hlbsp,
-        &q2bsp,
-        &qbism,
-        &bsp2,
-        &subdivide,
-        &nofill,
-        &noclip,
-        &noskip,
-        &nodetail,
-        &onlyents,
-        &splitsky,
-        &splitturb,
-        &splitspecial,
-        &transwater,
-        &transsky,
-        &notextures,
-        &convertmapformat,
-        &oldaxis,
-        &forcegoodtree,
-        &midsplitsurffraction,
-        &maxnodesize,
-        &oldrottex,
-        &epsilon,
-        &contenthack,
-        &leaktest,
-        &includeskip,
-        &worldextent,
-        &leakdist,
-        &forceprt1,
-        &notjunc,
-        &objexport,
-        &wrbrushes,
-        &wrbrushesonly,
-        &omitdetail,
-        &omitdetailwall,
-        &omitdetailillusionary,
-        &omitdetailfence,
-        &expand,
-        &wadpaths,
-    });
+    if (options.target_version) {
+        FError("BSP version was set by multiple flags; currently {}, tried to change to {}\n",
+            options.target_version->name, version->name);
+    }
+
+    options.target_version = version;
+}
+
+void qbsp_settings::initialize(int argc, const char **argv)
+{
+    if (auto file = fs::load("qbsp.ini")) {
+        LogPrint("Loading options from qbsp.ini\n");
+        parse(parser_t(file->data(), file->size()));
+    }
+
+    auto remainder = parse(token_parser_t(argc, argv));
+
+    if (remainder.size() <= 0 || remainder.size() > 2) {
+        printHelp();
+    }
+
+    options.szMapName = remainder[0];
+
+    if (remainder.size() == 2) {
+        options.szBSPName = remainder[1];
+    }
+}
+
+void qbsp_settings::postinitialize(int argc, const char **argv)
+{
+    common_settings::postinitialize(argc, argv);
+
+    // side effects from common
+    if (log_mask & (1 << LOG_VERBOSE)) {
+        options.fAllverbose = true;
+    }
+
+    if ((log_mask & ((1 << LOG_PERCENT) | (1 << LOG_STAT) | (1 << LOG_PROGRESS))) == 0) {
+        options.fNoverbose = true;
+    }
+
+    // set target BSP type
+    if (hlbsp.value()) {
+        set_target_version(&bspver_hl);
+    }
+
+    if (q2bsp.value()) {
+        set_target_version(&bspver_q2);
+    }
+
+    if (qbism.value()) {
+        set_target_version(&bspver_qbism);
+    }
+
+    if (bsp2.value()) {
+        set_target_version(&bspver_bsp2);
+    }
+
+    if (bsp2rmq.value()) {
+        set_target_version(&bspver_bsp2rmq);
+    }
+
+    if (!options.target_version) {
+        set_target_version(&bspver_q1);
+    }
+
+    // if we wanted hexen2, update it now
+    if (hexen2.value()) {
+        if (options.target_version == &bspver_bsp2) {
+            options.target_version = &bspver_h2bsp2;
+        } else if (options.target_version == &bspver_bsp2rmq) {
+            options.target_version = &bspver_h2bsp2rmq;
+        } else {
+            options.target_version = &bspver_h2;
+        }
+    } else {
+        if (!options.target_version) {
+            options.target_version = &bspver_q1;
+        }
+    }
+
+    // update target game
+    options.target_game = options.target_version->game;
+
+    /* If no wadpath given, default to the map directory */
+    if (wadpaths.pathsValue().empty()) {
+        wadpath wp{options.szMapName.parent_path(), false};
+
+        // If options.szMapName is a relative path, StrippedFilename will return the empty string.
+        // In that case, don't add it as a wad path.
+        if (!wp.path.empty()) {
+            wadpaths.addPath(wp);
+        }
+    }
 }
 }; // namespace settings
 
-options_t options;
+settings::qbsp_settings options;
 
 bool node_t::opaque() const
 {
@@ -597,7 +582,7 @@ static void EmitAreaPortals(node_t *headnode)
 
 winding_t BaseWindingForPlane(const qplane3d &p)
 {
-    return winding_t::from_plane(p, settings::worldextent.value());
+    return winding_t::from_plane(p, options.worldextent.value());
 }
 
 /*
@@ -687,16 +672,16 @@ static void ProcessEntity(mapentity_t *entity, const int hullnum)
      */
     std::vector<surface_t> surfs = CSGFaces(entity);
 
-    if (settings::objexport.value() && entity == pWorldEnt() && hullnum <= 0) {
+    if (options.objexport.value() && entity == pWorldEnt() && hullnum <= 0) {
         ExportObj_Surfaces("post_csg", surfs);
     }
 
     if (hullnum > 0) {
         nodes = SolidBSP(entity, surfs, true);
-        if (entity == pWorldEnt() && !settings::nofill.value()) {
+        if (entity == pWorldEnt() && !options.nofill.value()) {
             // assume non-world bmodels are simple
             PortalizeWorld(entity, nodes, hullnum);
-            if (!settings::nofill.value() && FillOutside(nodes, hullnum)) {
+            if (!options.nofill.value() && FillOutside(nodes, hullnum)) {
                 // Free portals before regenerating new nodes
                 FreeAllPortals(nodes);
                 surfs = GatherNodeFaces(nodes);
@@ -719,7 +704,7 @@ static void ProcessEntity(mapentity_t *entity, const int hullnum)
          * sometimes result in reduced marksurfaces at the expense of
          * longer processing time.
          */
-        if (settings::forcegoodtree.value())
+        if (options.forcegoodtree.value())
             nodes = SolidBSP(entity, surfs, false);
         else
             nodes = SolidBSP(entity, surfs, entity == pWorldEnt());
@@ -729,7 +714,7 @@ static void ProcessEntity(mapentity_t *entity, const int hullnum)
         if (entity == pWorldEnt()) {
             // assume non-world bmodels are simple
             PortalizeWorld(entity, nodes, hullnum);
-            if (!settings::nofill.value() && FillOutside(nodes, hullnum)) {
+            if (!options.nofill.value() && FillOutside(nodes, hullnum)) {
                 FreeAllPortals(nodes);
 
                 // get the remaining faces together into surfaces again
@@ -747,7 +732,7 @@ static void ProcessEntity(mapentity_t *entity, const int hullnum)
                 // make the real portals for vis tracing
                 PortalizeWorld(entity, nodes, hullnum);
 
-                if (!settings::notjunc.value()) {
+                if (!options.notjunc.value()) {
                     TJunc(entity, nodes);
                 }
             }
@@ -762,14 +747,14 @@ static void ProcessEntity(mapentity_t *entity, const int hullnum)
         }
 
         // bmodels
-        if (entity != pWorldEnt() && !settings::notjunc.value()) {
+        if (entity != pWorldEnt() && !options.notjunc.value()) {
             TJunc(entity, nodes);
         }
 
         // convert detail leafs to solid (in case we didn't make the call above)
         DetailToSolid(nodes);
 
-        if (settings::objexport.value() && entity == pWorldEnt()) {
+        if (options.objexport.value() && entity == pWorldEnt()) {
             ExportObj_Nodes("pre_makefaceedges_plane_faces", nodes);
             ExportObj_Marksurfaces("pre_makefaceedges_marksurfaces", nodes);
         }
@@ -966,7 +951,7 @@ static void BSPX_CreateBrushList(void)
     const char *mod;
     struct bspxbrushes_s ctx;
 
-    if (!settings::wrbrushes.value())
+    if (!options.wrbrushes.value())
         return;
 
     BSPX_Brushes_Init(&ctx);
@@ -1038,7 +1023,7 @@ static void CreateHulls(void)
     if (!hulls.size()) {
         CreateSingleHull(HULL_COLLISION);
         // only create hull 0 if fNoclip is set
-    } else if (settings::noclip.value()) {
+    } else if (options.noclip.value()) {
         CreateSingleHull(0);
         // do all the hulls
     } else {
@@ -1090,11 +1075,11 @@ static void ProcessFile(void)
     // load brushes and entities
     LoadMapFile();
 
-    if (settings::convertmapformat.value() != conversion_t::none) {
+    if (options.convertmapformat.value() != conversion_t::none) {
         ConvertMapFile();
         return;
     }
-    if (settings::onlyents.value()) {
+    if (options.onlyents.value()) {
         UpdateEntLump();
         return;
     }
@@ -1111,7 +1096,7 @@ static void ProcessFile(void)
     }
 
     // calculate extents, if required
-    if (!settings::worldextent.value()) {
+    if (!options.worldextent.value()) {
         CalculateWorldExtent();
     }
 
@@ -1126,102 +1111,6 @@ static void ProcessFile(void)
     wadlist.clear();
 }
 
-namespace settings
-{
-inline void set_target_version(const bspversion_t *version)
-{
-    if (options.target_version) {
-        FError("BSP version was set by multiple flags; currently {}, tried to change to {}\n",
-            options.target_version->name, version->name);
-    }
-
-    options.target_version = version;
-}
-
-inline void compileSettings(int argc, const char **argv)
-{
-    settings::globalSettings.usage =
-        "qbsp performs geometric level processing of Quake .MAP files to create\nQuake .BSP files.\n\n";
-    settings::globalSettings.programName = fs::path(argv[0]).stem().string();
-    settings::globalSettings.remainderName = "sourcefile.map [destfile.bsp]";
-    settings::registerSettings();
-
-    if (auto file = fs::load("qbsp.ini")) {
-        LogPrint("Loading options from qbsp.ini\n");
-        parser_t parser(file->data(), file->size());
-        settings::globalSettings.parse(parser);
-    }
-
-    auto remainder = settings::globalSettings.parse(token_parser_t(argc, argv));
-
-    if (remainder.size() <= 0 || remainder.size() > 2) {
-        settings::globalSettings.printHelp();
-    }
-
-    options.szMapName = remainder[0];
-
-    if (remainder.size() == 2) {
-        options.szBSPName = remainder[1];
-    }
-
-    settings::globalSettings.printSummary();
-
-    initGlobalSettings();
-
-    // side effects from common
-    if (log_mask & (1 << LOG_VERBOSE)) {
-        options.fAllverbose = true;
-    }
-
-    if ((log_mask & ((1 << LOG_PERCENT) | (1 << LOG_STAT) | (1 << LOG_PROGRESS))) == 0) {
-        options.fNoverbose = true;
-    }
-
-    // set target BSP type
-    if (hlbsp.value()) {
-        set_target_version(&bspver_hl);
-    }
-
-    if (q2bsp.value()) {
-        set_target_version(&bspver_q2);
-    }
-
-    if (qbism.value()) {
-        set_target_version(&bspver_qbism);
-    }
-
-    if (bsp2.value()) {
-        set_target_version(&bspver_bsp2);
-    }
-
-    if (bsp2rmq.value()) {
-        set_target_version(&bspver_bsp2rmq);
-    }
-
-    if (!options.target_version) {
-        set_target_version(&bspver_q1);
-    }
-
-    // if we wanted hexen2, update it now
-    if (hexen2.value()) {
-        if (options.target_version == &bspver_bsp2) {
-            options.target_version = &bspver_h2bsp2;
-        } else if (options.target_version == &bspver_bsp2rmq) {
-            options.target_version = &bspver_h2bsp2rmq;
-        } else {
-            options.target_version = &bspver_h2;
-        }
-    } else {
-        if (!options.target_version) {
-            options.target_version = &bspver_q1;
-        }
-    }
-
-    // update target game
-    options.target_game = options.target_version->game;
-}
-}; // namespace settings
-
 /*
 ==================
 InitQBSP
@@ -1229,7 +1118,7 @@ InitQBSP
 */
 static void InitQBSP(int argc, const char **argv)
 {
-    settings::compileSettings(argc - 1, argv + 1);
+    options.run(argc - 1, argv + 1);
 
     options.szMapName.replace_extension("map");
 
@@ -1243,19 +1132,8 @@ static void InitQBSP(int argc, const char **argv)
 
     LogPrintSilent(IntroString);
 
-    /* If no wadpath given, default to the map directory */
-    if (settings::wadpaths.pathsValue().empty()) {
-        settings::wadpath wp{options.szMapName.parent_path(), false};
-
-        // If options.szMapName is a relative path, StrippedFilename will return the empty string.
-        // In that case, don't add it as a wad path.
-        if (!wp.path.empty()) {
-            settings::wadpaths.addPath(wp);
-        }
-    }
-
     // Remove already existing files
-    if (!settings::onlyents.value() && settings::convertmapformat.value() == conversion_t::none) {
+    if (!options.onlyents.value() && options.convertmapformat.value() == conversion_t::none) {
         options.szBSPName.replace_extension("bsp");
         remove(options.szBSPName);
 

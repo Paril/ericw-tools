@@ -89,7 +89,7 @@ const std::string &WorldValueForKey(const std::string &key)
  *
  * Pass an empty string to generate a new unique lightstyle.
  */
-static int LightStyleForTargetname(const globalconfig_t &cfg, const std::string &targetname)
+static int LightStyleForTargetname(const settings::worldspawn_keys &cfg, const std::string &targetname)
 {
     // check if already assigned
     for (const auto &pr : lightstyleForTargetname) {
@@ -269,7 +269,7 @@ bool EntDict_CheckTargetnameKeyMatched(
     return ok;
 }
 
-static void SetupSpotlights(const globalconfig_t &cfg)
+static void SetupSpotlights(const settings::worldspawn_keys &cfg)
 {
     for (light_t &entity : all_lights) {
         vec_t targetdist = 0.0; // mxd
@@ -297,7 +297,7 @@ static void SetupSpotlights(const globalconfig_t &cfg)
     }
 }
 
-static void CheckEntityFields(const globalconfig_t &cfg, light_t *entity)
+static void CheckEntityFields(const settings::worldspawn_keys &cfg, light_t *entity)
 {
     if (entity->light.value() == 0.0f)
         entity->light.setValue(DEFAULTLIGHTLEVEL);
@@ -341,7 +341,7 @@ static void CheckEntityFields(const globalconfig_t &cfg, light_t *entity)
  * Resolves a dirt flag (0=default, 1=enable, -1=disable) to a boolean
  * =============
  */
-static bool Dirt_ResolveFlag(const globalconfig_t &cfg, int dirtInt)
+static bool Dirt_ResolveFlag(const settings::worldspawn_keys &cfg, int dirtInt)
 {
     if (dirtInt == 1)
         return true;
@@ -356,7 +356,7 @@ static bool Dirt_ResolveFlag(const globalconfig_t &cfg, int dirtInt)
  * AddSun
  * =============
  */
-static void AddSun(const globalconfig_t &cfg, const qvec3d &sunvec, vec_t light, const qvec3d &color, int dirtInt,
+static void AddSun(const settings::worldspawn_keys &cfg, const qvec3d &sunvec, vec_t light, const qvec3d &color, int dirtInt,
     vec_t sun_anglescale, const int style, const std::string &suntexture)
 {
     if (light == 0.0f)
@@ -390,12 +390,12 @@ static void AddSun(const globalconfig_t &cfg, const qvec3d &sunvec, vec_t light,
  * From q3map2
  * =============
  */
-static void SetupSun(const globalconfig_t &cfg, vec_t light, const qvec3d &color, const qvec3d &sunvec_in,
+static void SetupSun(const settings::worldspawn_keys &cfg, vec_t light, const qvec3d &color, const qvec3d &sunvec_in,
     const vec_t sun_anglescale, const vec_t sun_deviance, const int sunlight_dirt, const int style,
     const std::string &suntexture)
 {
     int i;
-    int sun_num_samples = (sun_deviance == 0 ? 1 : settings::sunsamples.value()); // mxd
+    int sun_num_samples = (sun_deviance == 0 ? 1 : options.sunsamples.value()); // mxd
     vec_t sun_deviance_rad = DEG2RAD(sun_deviance); // mxd
     vec_t sun_deviance_sq = sun_deviance * sun_deviance; // mxd
 
@@ -439,7 +439,7 @@ static void SetupSun(const globalconfig_t &cfg, vec_t light, const qvec3d &color
     }
 }
 
-static void SetupSuns(const globalconfig_t &cfg)
+static void SetupSuns(const settings::worldspawn_keys &cfg)
 {
     for (light_t &entity : all_lights) {
         // mxd. Arghrad-style sun setup
@@ -486,7 +486,7 @@ static void SetupSuns(const globalconfig_t &cfg)
  * FIXME: this is becoming a mess
  * =============
  */
-static void SetupSkyDome(const globalconfig_t &cfg, vec_t upperLight, const qvec3d &upperColor, const int upperDirt,
+static void SetupSkyDome(const settings::worldspawn_keys &cfg, vec_t upperLight, const qvec3d &upperColor, const int upperDirt,
     const vec_t upperAnglescale, const int upperStyle, const std::string &upperSuntexture, vec_t lowerLight,
     const qvec3d &lowerColor, const int lowerDirt, const vec_t lowerAnglescale, const int lowerStyle,
     const std::string &lowerSuntexture)
@@ -499,7 +499,7 @@ static void SetupSkyDome(const globalconfig_t &cfg, vec_t upperLight, const qvec
     qvec3d direction;
 
     /* pick a value for 'iterations' so that 'numSuns' will be close to 'sunsamples' */
-    iterations = rint(sqrt((settings::sunsamples.value() - 1) / 4)) + 1;
+    iterations = rint(sqrt((options.sunsamples.value() - 1) / 4)) + 1;
     iterations = max(iterations, 2);
 
     /* dummy check */
@@ -566,7 +566,7 @@ static void SetupSkyDome(const globalconfig_t &cfg, vec_t upperLight, const qvec
     }
 }
 
-static void SetupSkyDomes(const globalconfig_t &cfg)
+static void SetupSkyDomes(const settings::worldspawn_keys &cfg)
 {
     // worldspawn "legacy" skydomes
     SetupSkyDome(cfg, cfg.sunlight2.value(), cfg.sunlight2_color.value(), cfg.sunlight2_dirt.value(),
@@ -831,7 +831,7 @@ static std::string ParseEscapeSequences(const std::string &input)
  * LoadEntities
  * ==================
  */
-void LoadEntities(const globalconfig_t &cfg, const mbsp_t *bsp)
+void LoadEntities(const settings::worldspawn_keys &cfg, const mbsp_t *bsp)
 {
     LogPrint("--- LoadEntities ---\n");
 
@@ -892,7 +892,7 @@ void LoadEntities(const globalconfig_t &cfg, const mbsp_t *bsp)
     }
 
     Q_assert(all_lights.empty());
-    if (settings::nolights.value()) {
+    if (options.nolights.value()) {
         return;
     }
 
@@ -904,7 +904,7 @@ void LoadEntities(const globalconfig_t &cfg, const mbsp_t *bsp)
          */
         if (EntDict_StringForKey(entdict, "classname").find("light") == 0) {
             // mxd. Convert some Arghrad3 settings...
-            if (settings::arghradcompat.value()) {
+            if (options.arghradcompat.value()) {
                 EntDict_RenameKey(entdict, "_falloff", "delay"); // _falloff -> delay
                 EntDict_RenameKey(entdict, "_distance", "_falloff"); // _distance -> _falloff
                 EntDict_RenameKey(entdict, "_fade", "wait"); // _fade -> wait
@@ -921,7 +921,7 @@ void LoadEntities(const globalconfig_t &cfg, const mbsp_t *bsp)
             }
 
             // Skip non-switchable lights if we're skipping world lighting
-            if (settings::nolighting.value() && EntDict_StringForKey(entdict, "style").empty() &&
+            if (options.nolighting.value() && EntDict_StringForKey(entdict, "style").empty() &&
                 EntDict_StringForKey(entdict, "switchshadstyle").empty()) {
                 continue;
             }
@@ -933,7 +933,7 @@ void LoadEntities(const globalconfig_t &cfg, const mbsp_t *bsp)
             entity.epairs = &entdict;
 
             // populate settings
-            entity.settings.setSettings(*entity.epairs, false);
+            entity.setSettings(*entity.epairs, false);
 
             if (entity.mangle.isChanged()) {
                 entity.spotvec = qv::vec_from_mangle(entity.mangle.value());
@@ -1110,7 +1110,7 @@ static void *EstimateLightAABBThread(void *arg)
 
 void EstimateLightVisibility(void)
 {
-    if (settings::novisapprox.value())
+    if (options.novisapprox.value())
         return;
 
     LogPrint("--- EstimateLightVisibility ---\n");
@@ -1118,7 +1118,7 @@ void EstimateLightVisibility(void)
     RunThreadsOn(0, static_cast<int>(all_lights.size()), EstimateLightAABBThread, nullptr);
 }
 
-void SetupLights(const globalconfig_t &cfg, const mbsp_t *bsp)
+void SetupLights(const settings::worldspawn_keys &cfg, const mbsp_t *bsp)
 {
     LogPrint("SetupLights: {} initial lights\n", all_lights.size());
 
@@ -1180,7 +1180,7 @@ qvec3d EntDict_VectorForKey(const entdict_t &ent, const std::string &key)
  * Re-write the entdata BSP lump because switchable lights need styles set.
  * ================
  */
-void WriteEntitiesToString(const globalconfig_t &cfg, mbsp_t *bsp)
+void WriteEntitiesToString(const settings::worldspawn_keys &cfg, mbsp_t *bsp)
 {
     bsp->dentdata = EntData_Write(entdicts);
 
@@ -1227,7 +1227,7 @@ static void CreateSurfaceLight(const qvec3d &origin, const qvec3d &normal, const
     }
 
     /* export it to a map file for debugging */
-    if (settings::surflight_dump.value()) {
+    if (options.surflight_dump.value()) {
         SurfLights_WriteEntityToFile(&entity, origin);
     }
 }
@@ -1371,7 +1371,7 @@ static void GL_SubdivideSurface(const mface_t *face, const modelinfo_t *face_mod
         }
     }
 
-    SubdividePolygon(face, face_modelinfo, bsp, face->numedges, verts, settings::surflight_subdivide.value());
+    SubdividePolygon(face, face_modelinfo, bsp, face->numedges, verts, options.surflight_subdivide.value());
 }
 
 bool ParseLightsFile(const std::filesystem::path &fname)
@@ -1417,7 +1417,7 @@ static void MakeSurfaceLights(const mbsp_t *bsp)
     for (entdict_t &l : radlights) {
         light_t &entity = surfacelight_templates.emplace_back();
         entity.epairs = &l;
-        entity.settings.setSettings(*entity.epairs, false);
+        entity.setSettings(*entity.epairs, false);
     }
 
     for (light_t &entity : all_lights) {
@@ -1436,8 +1436,8 @@ static void MakeSurfaceLights(const mbsp_t *bsp)
     if (surfacelight_templates.empty())
         return;
 
-    if (settings::surflight_dump.value()) {
-        surflights_dump_filename = settings::sourceMap;
+    if (options.surflight_dump.value()) {
+        surflights_dump_filename = options.sourceMap;
         surflights_dump_filename.replace_filename(surflights_dump_filename.stem().string() + "-surflights")
             .replace_extension("map");
         surflights_dump_file.open(surflights_dump_filename);

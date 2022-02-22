@@ -190,7 +190,7 @@ static void ExportLeaf(mapentity_t *entity, node_t *node)
     dleaf.firstmarksurface = static_cast<int>(map.bsp.dleaffaces.size());
 
     for (auto &face : node->markfaces) {
-        if (!settings::includeskip.value() && map.mtexinfos.at(face->texinfo).flags.is_skip)
+        if (!options.includeskip.value() && map.mtexinfos.at(face->texinfo).flags.is_skip)
             continue;
         // FIXME: this can happen when compiling some Q2 maps
         // as Q1.
