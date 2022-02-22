@@ -463,9 +463,9 @@ static void LightWorld(bspdata_t *bspdata, bool forcedscale)
 
     CalculateVertexNormals(&bsp);
 
-    const bool bouncerequired =
-        cfg_static.bounce.value() && (options.debugmode == debugmodes::none || options.debugmode == debugmodes::bounce ||
-                                         options.debugmode == debugmodes::bouncelights); // mxd
+    const bool bouncerequired = cfg_static.bounce.value() &&
+                                (options.debugmode == debugmodes::none || options.debugmode == debugmodes::bounce ||
+                                    options.debugmode == debugmodes::bouncelights); // mxd
     const bool isQuake2map = bsp.loadversion->game->id == GAME_QUAKE_II; // mxd
 
     if ((bouncerequired || isQuake2map) && !options.nolighting.value()) {

@@ -356,8 +356,8 @@ static bool Dirt_ResolveFlag(const settings::worldspawn_keys &cfg, int dirtInt)
  * AddSun
  * =============
  */
-static void AddSun(const settings::worldspawn_keys &cfg, const qvec3d &sunvec, vec_t light, const qvec3d &color, int dirtInt,
-    vec_t sun_anglescale, const int style, const std::string &suntexture)
+static void AddSun(const settings::worldspawn_keys &cfg, const qvec3d &sunvec, vec_t light, const qvec3d &color,
+    int dirtInt, vec_t sun_anglescale, const int style, const std::string &suntexture)
 {
     if (light == 0.0f)
         return;
@@ -486,9 +486,9 @@ static void SetupSuns(const settings::worldspawn_keys &cfg)
  * FIXME: this is becoming a mess
  * =============
  */
-static void SetupSkyDome(const settings::worldspawn_keys &cfg, vec_t upperLight, const qvec3d &upperColor, const int upperDirt,
-    const vec_t upperAnglescale, const int upperStyle, const std::string &upperSuntexture, vec_t lowerLight,
-    const qvec3d &lowerColor, const int lowerDirt, const vec_t lowerAnglescale, const int lowerStyle,
+static void SetupSkyDome(const settings::worldspawn_keys &cfg, vec_t upperLight, const qvec3d &upperColor,
+    const int upperDirt, const vec_t upperAnglescale, const int upperStyle, const std::string &upperSuntexture,
+    vec_t lowerLight, const qvec3d &lowerColor, const int lowerDirt, const vec_t lowerAnglescale, const int lowerStyle,
     const std::string &lowerSuntexture)
 {
     int i, j, numSuns;

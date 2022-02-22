@@ -54,7 +54,7 @@ void vis_settings::initialize(int argc, const char **argv)
     if (remainder.size() <= 0 || remainder.size() > 1) {
         printHelp();
     }
-    
+
     sourceMap = DefaultExtension(remainder[0], "bsp");
 }
 } // namespace settings

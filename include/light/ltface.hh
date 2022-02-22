@@ -79,8 +79,8 @@ vec_t GetLightValue(const settings::worldspawn_keys &cfg, const light_t *entity,
 std::map<int, qvec3f> GetDirectLighting(
     const mbsp_t *bsp, const settings::worldspawn_keys &cfg, const qvec3d &origin, const qvec3d &normal);
 void SetupDirt(settings::worldspawn_keys &cfg);
-float DirtAtPoint(const settings::worldspawn_keys &cfg, raystream_intersection_t *rs, const qvec3d &point, const qvec3d &normal,
-    const modelinfo_t *selfshadow);
+float DirtAtPoint(const settings::worldspawn_keys &cfg, raystream_intersection_t *rs, const qvec3d &point,
+    const qvec3d &normal, const modelinfo_t *selfshadow);
 void LightFace(const mbsp_t *bsp, mface_t *face, facesup_t *facesup, const settings::worldspawn_keys &cfg);
 
 inline qmat4x4f TexSpaceToWorld(const mbsp_t *bsp, const mface_t *f)

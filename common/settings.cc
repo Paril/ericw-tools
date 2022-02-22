@@ -23,7 +23,8 @@
 
 namespace settings
 {
-lockable_base::lockable_base(dict *dictionary, const strings &names, const settings_group *group, const char *description)
+lockable_base::lockable_base(
+    dict *dictionary, const strings &names, const settings_group *group, const char *description)
     : _names(names), _group(group), _description(description)
 {
     Q_assert(_names.size() > 0);

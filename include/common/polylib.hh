@@ -207,15 +207,12 @@ public:
     };
 
     // default constructor does nothing
-    inline winding_base_t()
-    {
-    }
+    inline winding_base_t() { }
 
     // construct winding with initial size; may allocate
     // memory, and sets size, but does not initialize any
     // of them.
-    inline winding_base_t(const size_t &initial_size)
-        : count(initial_size), isVector(count > N)
+    inline winding_base_t(const size_t &initial_size) : count(initial_size), isVector(count > N)
     {
         if (isVector) {
             vector.reserve(count);
@@ -225,8 +222,7 @@ public:
     // construct winding from range.
     // iterators must have operator-.
     template<typename Iter, std::enable_if_t<is_iterator_v<Iter>, int> = 0>
-    inline winding_base_t(Iter begin, Iter end)
-        : count(end - begin), isVector(count > N)
+    inline winding_base_t(Iter begin, Iter end) : count(end - begin), isVector(count > N)
     {
         if (isVector) {
             vector = std::move(vector_type(begin, end));
@@ -236,9 +232,7 @@ public:
     }
 
     // copy constructor
-    inline winding_base_t(const winding_base_t &copy) : winding_base_t(copy.begin(), copy.end())
-    {
-    }
+    inline winding_base_t(const winding_base_t &copy) : winding_base_t(copy.begin(), copy.end()) { }
 
     // move constructor
     inline winding_base_t(winding_base_t &&move) noexcept : count(move.count)
@@ -275,7 +269,7 @@ public:
     {
         count = move.count;
         isVector = move.isVector;
-        
+
         if (move.isVector) {
             vector = std::move(move.vector);
             move.isVector = false;
@@ -349,8 +343,8 @@ public:
         return iterator(array.begin() + count);
     }
 
-    template<typename ...Args>
-    qvec3d &emplace_back(Args&&... vec)
+    template<typename... Args>
+    qvec3d &emplace_back(Args &&...vec)
     {
         // move us to dynamic
         if (count == N) {
@@ -367,15 +361,9 @@ public:
         return (array[count - 1] = qvec3d(std::forward<Args>(vec)...));
     }
 
-    void push_back(qvec3d &&vec)
-    {
-        emplace_back(std::move(vec));
-    }
+    void push_back(qvec3d &&vec) { emplace_back(std::move(vec)); }
 
-    void push_back(const qvec3d &vec)
-    {
-        emplace_back(vec);
-    }
+    void push_back(const qvec3d &vec) { emplace_back(vec); }
 
     void resize(const size_t &new_size)
     {
@@ -386,7 +374,7 @@ public:
         } else if (isVector) {
             if (new_size > N) {
                 vector.resize(new_size);
-            // move us to array if we're shrinking
+                // move us to array if we're shrinking
             } else {
                 std::copy_n(vector.begin(), new_size, array.begin());
             }

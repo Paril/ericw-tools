@@ -74,7 +74,8 @@ public:
     settings::lockable_scalar spotangle{this, "angle", 40.0};
     settings::lockable_scalar spotangle2{this, "softangle", 0.0};
     settings::lockable_numeric<int32_t> style{this, "style", 0.0, 0, 254};
-    settings::lockable_scalar anglescale{this, settings::strings{"anglesense", "anglescale"}, -1.0}; // fallback to worldspawn
+    settings::lockable_scalar anglescale{
+        this, settings::strings{"anglesense", "anglescale"}, -1.0}; // fallback to worldspawn
     settings::lockable_scalar dirtscale{this, "dirtscale", 0.0};
     settings::lockable_scalar dirtgain{this, "dirtgain", 0};
     settings::lockable_scalar dirt{this, "dirt", 0};

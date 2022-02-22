@@ -1101,8 +1101,8 @@ constexpr vec_t fraction(const vec_t &min, const vec_t &val, const vec_t &max)
  * returns scale factor for dirt/ambient occlusion
  * ============
  */
-inline vec_t Dirt_GetScaleFactor(
-    const settings::worldspawn_keys &cfg, vec_t occlusion, const light_t *entity, const vec_t entitydist, const lightsurf_t *surf)
+inline vec_t Dirt_GetScaleFactor(const settings::worldspawn_keys &cfg, vec_t occlusion, const light_t *entity,
+    const vec_t entitydist, const lightsurf_t *surf)
 {
     vec_t light_dirtgain = cfg.dirtGain.value();
     vec_t light_dirtscale = cfg.dirtScale.value();
@@ -1751,7 +1751,8 @@ static void LightFace_BounceLightsDebug(const lightsurf_t *lightsurf, lightmapdi
 }
 
 // returns color in [0,255]
-inline qvec3f BounceLight_ColorAtDist(const settings::worldspawn_keys &cfg, float area, const qvec3f &bounceLightColor, float dist)
+inline qvec3f BounceLight_ColorAtDist(
+    const settings::worldspawn_keys &cfg, float area, const qvec3f &bounceLightColor, float dist)
 {
     // clamp away hotspots
     if (dist < 128.0f) {
@@ -1780,8 +1781,8 @@ static qvec3f SurfaceLight_ColorAtDist(
 
 // dir: vpl -> sample point direction
 // returns color in [0,255]
-inline qvec3f GetIndirectLighting(const settings::worldspawn_keys &cfg, const bouncelight_t *vpl, const qvec3f &bounceLightColor,
-    const qvec3f &dir, const float dist, const qvec3f &origin, const qvec3f &normal)
+inline qvec3f GetIndirectLighting(const settings::worldspawn_keys &cfg, const bouncelight_t *vpl,
+    const qvec3f &bounceLightColor, const qvec3f &dir, const float dist, const qvec3f &origin, const qvec3f &normal)
 {
     const float dp1 = qv::dot(vpl->surfnormal, dir);
     if (dp1 < 0.0f)
@@ -1807,8 +1808,8 @@ inline qvec3f GetIndirectLighting(const settings::worldspawn_keys &cfg, const bo
 
 // dir: vpl -> sample point direction
 // mxd. returns color in [0,255]
-static qvec3f GetSurfaceLighting(
-    const settings::worldspawn_keys &cfg, const surfacelight_t *vpl, const qvec3f &dir, const float dist, const qvec3f &normal)
+static qvec3f GetSurfaceLighting(const settings::worldspawn_keys &cfg, const surfacelight_t *vpl, const qvec3f &dir,
+    const float dist, const qvec3f &normal)
 {
     qvec3f result;
     float dotProductFactor = 1.0f;
@@ -2348,8 +2349,8 @@ inline qvec3d GetDirtVector(const settings::worldspawn_keys &cfg, int i)
     return dirtVectors[i];
 }
 
-float DirtAtPoint(const settings::worldspawn_keys &cfg, raystream_intersection_t *rs, const qvec3d &point, const qvec3d &normal,
-    const modelinfo_t *selfshadow)
+float DirtAtPoint(const settings::worldspawn_keys &cfg, raystream_intersection_t *rs, const qvec3d &point,
+    const qvec3d &normal, const modelinfo_t *selfshadow)
 {
     if (!dirt_in_use) {
         return 0.0f;
