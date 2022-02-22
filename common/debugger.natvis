@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
-  <Type Name="qvec&lt;*,*&gt;">
-	  <DisplayString>{($T1 *) (&amp; v),[$T2]}</DisplayString>
-	  <Expand>
-		  <ExpandedItem>v</ExpandedItem>
-	  </Expand>
-  </Type>
+	<!--math lib-->
+	<Type Name="qvec&lt;*,*&gt;">
+		<DisplayString>{($T1 *) (&amp; v),[$T2]}</DisplayString>
+		<Expand>
+			<ExpandedItem>v</ExpandedItem>
+		</Expand>
+	</Type>
 	<Type Name="qmat&lt;*,*,*&gt;">
 		<DisplayString>{$T2} x {$T3} matrix</DisplayString>
 		<Expand>
@@ -26,6 +27,14 @@
 				<Size>count</Size>
 				<ValuePointer>&amp;array[0]</ValuePointer>
 			</ArrayItems>
+		</Expand>
+	</Type>
+
+	<!--settings-->
+	<Type Name="settings::lockable_value&lt;*&gt;">
+		<DisplayString>{_value} from {_source}</DisplayString>
+		<Expand>
+			<ExpandedItem>_value</ExpandedItem>
 		</Expand>
 	</Type>
 </AutoVisualizer>
