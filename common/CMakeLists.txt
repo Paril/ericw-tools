@@ -11,6 +11,7 @@ add_library(common STATIC
     ${CMAKE_SOURCE_DIR}/common/fs.cc
     ${CMAKE_SOURCE_DIR}/common/imglib.cc
     ${CMAKE_SOURCE_DIR}/common/settings.cc
+    ${CMAKE_SOURCE_DIR}/common/debugger.natvis
     ${CMAKE_SOURCE_DIR}/include/common/aabb.hh
     ${CMAKE_SOURCE_DIR}/include/common/bspfile.hh
     ${CMAKE_SOURCE_DIR}/include/common/bsputils.hh

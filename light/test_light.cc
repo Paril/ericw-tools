@@ -448,24 +448,24 @@ static const float MANGLE_EPSILON = 0.1f;
 
 TEST(light, vec_from_mangle)
 {
-    EXPECT_TRUE(qv::epsilonEqual(qvec3f(1, 0, 0), vec_from_mangle(qvec3f(0, 0, 0)), MANGLE_EPSILON));
-    EXPECT_TRUE(qv::epsilonEqual(qvec3f(-1, 0, 0), vec_from_mangle(qvec3f(180, 0, 0)), MANGLE_EPSILON));
-    EXPECT_TRUE(qv::epsilonEqual(qvec3f(0, 0, 1), vec_from_mangle(qvec3f(0, 90, 0)), MANGLE_EPSILON));
-    EXPECT_TRUE(qv::epsilonEqual(qvec3f(0, 0, -1), vec_from_mangle(qvec3f(0, -90, 0)), MANGLE_EPSILON));
+    EXPECT_TRUE(qv::epsilonEqual(qvec3f(1, 0, 0), qv::vec_from_mangle(qvec3f(0, 0, 0)), MANGLE_EPSILON));
+    EXPECT_TRUE(qv::epsilonEqual(qvec3f(-1, 0, 0), qv::vec_from_mangle(qvec3f(180, 0, 0)), MANGLE_EPSILON));
+    EXPECT_TRUE(qv::epsilonEqual(qvec3f(0, 0, 1), qv::vec_from_mangle(qvec3f(0, 90, 0)), MANGLE_EPSILON));
+    EXPECT_TRUE(qv::epsilonEqual(qvec3f(0, 0, -1), qv::vec_from_mangle(qvec3f(0, -90, 0)), MANGLE_EPSILON));
 }
 
 TEST(light, mangle_from_vec)
 {
-    EXPECT_TRUE(qv::epsilonEqual(qvec3f(0, 0, 0), mangle_from_vec(qvec3f(1, 0, 0)), MANGLE_EPSILON));
-    EXPECT_TRUE(qv::epsilonEqual(qvec3f(180, 0, 0), mangle_from_vec(qvec3f(-1, 0, 0)), MANGLE_EPSILON));
-    EXPECT_TRUE(qv::epsilonEqual(qvec3f(0, 90, 0), mangle_from_vec(qvec3f(0, 0, 1)), MANGLE_EPSILON));
-    EXPECT_TRUE(qv::epsilonEqual(qvec3f(0, -90, 0), mangle_from_vec(qvec3f(0, 0, -1)), MANGLE_EPSILON));
+    EXPECT_TRUE(qv::epsilonEqual(qvec3f(0, 0, 0), qv::mangle_from_vec(qvec3f(1, 0, 0)), MANGLE_EPSILON));
+    EXPECT_TRUE(qv::epsilonEqual(qvec3f(180, 0, 0), qv::mangle_from_vec(qvec3f(-1, 0, 0)), MANGLE_EPSILON));
+    EXPECT_TRUE(qv::epsilonEqual(qvec3f(0, 90, 0), qv::mangle_from_vec(qvec3f(0, 0, 1)), MANGLE_EPSILON));
+    EXPECT_TRUE(qv::epsilonEqual(qvec3f(0, -90, 0), qv::mangle_from_vec(qvec3f(0, 0, -1)), MANGLE_EPSILON));
 
     for (int yaw = -179; yaw <= 179; yaw++) {
         for (int pitch = -89; pitch <= 89; pitch++) {
             const qvec3f origMangle = qvec3f(yaw, pitch, 0);
-            const qvec3f vec = vec_from_mangle(origMangle);
-            const qvec3f roundtrip = mangle_from_vec(vec);
+            const qvec3f vec = qv::vec_from_mangle(origMangle);
+            const qvec3f roundtrip = qv::mangle_from_vec(vec);
             EXPECT_TRUE(qv::epsilonEqual(origMangle, roundtrip, MANGLE_EPSILON));
         }
     }
