@@ -64,12 +64,14 @@ settings_group logging_group{"Logging", 5};
 
 void dict::printSummary()
 {
+    LogPrint("\n--- Options Summary ---\n");
     for (auto setting : _settings) {
         if (setting->isChanged()) {
             LogPrint("    \"{}\" was set to \"{}\" (from {})\n", setting->primaryName(), setting->stringValue(),
                 setting->sourceString());
         }
     }
+    LogPrint("\n");
 }
 
 std::vector<std::string> dict::parse(parser_base_t &parser)

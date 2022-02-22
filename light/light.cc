@@ -56,8 +56,6 @@
 
 using namespace std;
 
-settings::worldspawn_keys cfg_static;
-
 bool dirt_in_use = false;
 
 static facesup_t *faces_sup; // lit2/bspx stuff
@@ -155,12 +153,14 @@ void light_settings::postinitialize(int argc, const char **argv)
     }
 
     if (debugmode == debugmodes::dirt) {
-        cfg_static.globalDirt.setValueLocked(true);
+        options.globalDirt.setValueLocked(true);
     } else if (debugmode == debugmodes::bounce || debugmode == debugmodes::bouncelights) {
-        cfg_static.bounce.setValueLocked(true);
+        options.bounce.setValueLocked(true);
     } else if (debugmode == debugmodes::debugneighbours && !debugface.isChanged()) {
         FError("-debugneighbours without -debugface specified\n");
     }
+
+    options.printSummary();
 }
 } // namespace settings
 
@@ -168,7 +168,7 @@ settings::light_settings options;
 
 void SetGlobalSetting(std::string name, std::string value, bool cmdline)
 {
-    cfg_static.setSetting(name, value, cmdline);
+    options.setSetting(name, value, cmdline);
 }
 
 void FixupGlobalSettings()
@@ -184,15 +184,15 @@ void FixupGlobalSettings()
     // We can't just default "minlight_dirt" to "1" because that would enable
     // dirtmapping by default.
 
-    if (cfg_static.globalDirt.value()) {
-        if (!cfg_static.minlightDirt.isChanged()) {
-            cfg_static.minlightDirt.setValue(true);
+    if (options.globalDirt.value()) {
+        if (!options.minlightDirt.isChanged()) {
+            options.minlightDirt.setValue(true);
         }
-        if (!cfg_static.sunlight_dirt.isChanged()) {
-            cfg_static.sunlight_dirt.setValue(1);
+        if (!options.sunlight_dirt.isChanged()) {
+            options.sunlight_dirt.setValue(1);
         }
-        if (!cfg_static.sunlight2_dirt.isChanged()) {
-            cfg_static.sunlight2_dirt.setValue(1);
+        if (!options.sunlight2_dirt.isChanged()) {
+            options.sunlight2_dirt.setValue(1);
         }
     }
 }
@@ -312,19 +312,19 @@ static void *LightThread(void *arg)
         }
 
         if (!faces_sup)
-            LightFace(bsp, f, nullptr, cfg_static);
+            LightFace(bsp, f, nullptr, options);
         else if (options.novanilla.value()) {
             f->lightofs = -1;
             f->styles[0] = 255;
-            LightFace(bsp, f, faces_sup + facenum, cfg_static);
+            LightFace(bsp, f, faces_sup + facenum, options);
         } else if (faces_sup[facenum].lmscale == face_modelinfo->lightmapscale) {
-            LightFace(bsp, f, nullptr, cfg_static);
+            LightFace(bsp, f, nullptr, options);
             faces_sup[facenum].lightofs = f->lightofs;
             for (int i = 0; i < MAXLIGHTMAPS; i++)
                 faces_sup[facenum].styles[i] = f->styles[i];
         } else {
-            LightFace(bsp, f, nullptr, cfg_static);
-            LightFace(bsp, f, faces_sup + facenum, cfg_static);
+            LightFace(bsp, f, nullptr, options);
+            LightFace(bsp, f, faces_sup + facenum, options);
         }
     }
 
@@ -369,7 +369,7 @@ static void FindModelInfo(const mbsp_t *bsp)
     /* The world always casts shadows */
     modelinfo_t *world = new modelinfo_t{bsp, &bsp->dmodels[0], lightmapscale};
     world->shadow.setValue(1.0f); /* world always casts shadows */
-    world->phong_angle = cfg_static.phongangle;
+    world->phong_angle = options.phongangle;
     modelinfo.push_back(world);
     tracelist.push_back(world);
 
@@ -463,16 +463,16 @@ static void LightWorld(bspdata_t *bspdata, bool forcedscale)
 
     CalculateVertexNormals(&bsp);
 
-    const bool bouncerequired = cfg_static.bounce.value() &&
+    const bool bouncerequired = options.bounce.value() &&
                                 (options.debugmode == debugmodes::none || options.debugmode == debugmodes::bounce ||
                                     options.debugmode == debugmodes::bouncelights); // mxd
     const bool isQuake2map = bsp.loadversion->game->id == GAME_QUAKE_II; // mxd
 
     if ((bouncerequired || isQuake2map) && !options.nolighting.value()) {
         if (isQuake2map)
-            MakeSurfaceLights(cfg_static, &bsp);
+            MakeSurfaceLights(options, &bsp);
         if (bouncerequired)
-            MakeBounceLights(cfg_static, &bsp);
+            MakeBounceLights(options, &bsp);
     }
 
 #if 0
@@ -873,8 +873,6 @@ int light_main(int argc, const char **argv)
 
     LowerProcessPriority();
 
-    auto &cfg = cfg_static;
-
     auto start = I_FloatTime();
     fs::path source = options.sourceMap;
 
@@ -899,8 +897,8 @@ int light_main(int argc, const char **argv)
     mbsp_t &bsp = std::get<mbsp_t>(bspdata.bsp);
 
     // mxd. Use 1.0 rangescale as a default to better match with qrad3/arghrad
-    if ((bspdata.loadversion->game->id == GAME_QUAKE_II) && !cfg.rangescale.isChanged()) {
-        cfg.rangescale = std::move(settings::lockable_scalar(nullptr, cfg.rangescale.primaryName().c_str(), 1.0f, 0.0f,
+    if ((bspdata.loadversion->game->id == GAME_QUAKE_II) && !options.rangescale.isChanged()) {
+        options.rangescale = std::move(settings::lockable_scalar(nullptr, options.rangescale.primaryName().c_str(), 1.0f, 0.0f,
             100.0f)); // Gross hacks to avoid displaying this in OptionsSummary...
     }
 
@@ -908,7 +906,7 @@ int light_main(int argc, const char **argv)
     img::load_textures(&bsp);
 
     LoadExtendedTexinfoFlags(source, &bsp);
-    LoadEntities(cfg, &bsp);
+    LoadEntities(options, &bsp);
 
     options.postinitialize(argc, argv);
 
@@ -928,16 +926,16 @@ int light_main(int argc, const char **argv)
         return 0;
     }
 
-    SetupLights(cfg, &bsp);
+    SetupLights(options, &bsp);
 
     // PrintLights();
 
     if (!options.onlyents.value()) {
         if (!bspdata.loadversion->game->has_rgb_lightmap) {
-            CheckLitNeeded(cfg);
+            CheckLitNeeded(options);
         }
 
-        SetupDirt(cfg);
+        SetupDirt(options);
 
         LightWorld(&bspdata, options.lmscale.isChanged());
 
@@ -981,7 +979,7 @@ int light_main(int argc, const char **argv)
     ExportObj(source, bsp);
 #endif
 
-    WriteEntitiesToString(cfg, &bsp);
+    WriteEntitiesToString(options, &bsp);
     /* Convert data format back if necessary */
     ConvertBSPFormat(&bspdata, bspdata.loadversion);
 
