@@ -326,7 +326,7 @@ class light_settings : public common_settings, public worldspawn_keys
 public:
     // slight modification to setting_numeric that supports
     // a default value if a non-number is supplied after parsing
-    class lockable_soft : public setting_int32
+    class setting_soft : public setting_int32
     {
     public:
         using setting_int32::setting_int32;
@@ -359,7 +359,7 @@ public:
         virtual std::string format() const { return "[n]"; }
     };
 
-    class lockable_extra : public setting_value<int32_t>
+    class setting_extra : public setting_value<int32_t>
     {
     public:
         using setting_value::setting_value;
@@ -399,13 +399,13 @@ public:
     setting_vec3 debugvert{this, "debugvert", std::numeric_limits<vec_t>::quiet_NaN(),
         std::numeric_limits<vec_t>::quiet_NaN(), std::numeric_limits<vec_t>::quiet_NaN(), &debug_group, ""};
     setting_bool highlightseams{this, "highlightseams", false, &debug_group, ""};
-    lockable_soft soft{this, "soft", 0, 0, std::numeric_limits<int32_t>::max(), &postprocessing_group,
+    setting_soft soft{this, "soft", 0, 0, std::numeric_limits<int32_t>::max(), &postprocessing_group,
         "blurs the lightmap. specify n to blur radius in samples, otherwise auto"};
     setting_string radlights{this, "radlights", "", "\"filename.rad\"", &experimental_group,
         "loads a <surfacename> <r> <g> <b> <intensity> file"};
     setting_int32 lmscale{
         this, "lmscale", 0, &experimental_group, "change lightmap scale, vanilla engines only allow 16"};
-    lockable_extra extra{
+    setting_extra extra{
         this, {"extra", "extra4"}, 1, &performance_group, "supersampling; 2x2 (extra) or 4x4 (extra4) respectively"};
     setting_bool novisapprox{
         this, "novisapprox", false, &debug_group, "disable approximate visibility culling of lights"};

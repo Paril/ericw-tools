@@ -31,7 +31,7 @@
 	</Type>
 
 	<!--settings-->
-	<Type Name="settings::lockable_value&lt;*&gt;">
+	<Type Name="settings::setting_value&lt;*&gt;">
 		<DisplayString>{_value} from {_source}</DisplayString>
 		<Expand>
 			<ExpandedItem>_value</ExpandedItem>

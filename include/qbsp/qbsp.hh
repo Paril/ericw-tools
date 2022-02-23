@@ -74,14 +74,14 @@ struct wadpath
     inline bool operator<(const wadpath &other) const { return path < other.path; }
 };
 
-struct lockable_wadpathset : public setting_base
+struct setting_wadpathset : public setting_base
 {
 private:
     std::set<wadpath> _paths;
 
 public:
-    inline lockable_wadpathset(setting_container *dictionary, const nameset &names,
-        const setting_group *group = nullptr, const char *description = "")
+    inline setting_wadpathset(setting_container *dictionary, const nameset &names, const setting_group *group = nullptr,
+        const char *description = "")
         : setting_base(dictionary, names, group, description)
     {
     }
@@ -203,7 +203,7 @@ public:
         "func_detail_fence brushes are omitted from the compile"};
     setting_bool expand{
         this, "expand", false, &common_format_group, "write hull 1 expanded brushes to expanded.map for debugging"};
-    lockable_wadpathset wadpaths{this, {"wadpath", "xwadpath"}, &debugging_group,
+    setting_wadpathset wadpaths{this, {"wadpath", "xwadpath"}, &debugging_group,
         "add a path to the wad search paths; wads found in xwadpath's will not be embedded, otherwise they will be embedded (if not -notex)"};
 
     virtual void setParameters(int argc, const char **argv) override

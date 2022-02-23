@@ -70,7 +70,7 @@ struct setting_group
 
 class setting_container;
 
-// base class for any lockable setting
+// base class for any setting
 class setting_base
 {
 protected:
@@ -161,7 +161,7 @@ public:
     virtual std::string format() const = 0;
 };
 
-// a special type of lockable that acts as a flag but
+// a special type of setting that acts as a flag but
 // calls back to a function to actually do the tasks.
 // be careful because this won't show up in summary.
 class setting_func : public setting_base
@@ -187,7 +187,7 @@ public:
     virtual std::string format() const override { return ""; }
 };
 
-// base class for a lockable setting that has its own value
+// base class for a setting that has its own value
 template<typename T>
 class setting_value : public setting_base
 {
@@ -271,7 +271,7 @@ public:
     virtual std::string format() const override { return _default ? "[0]" : ""; }
 };
 
-// an extension to lockable_bool; this automatically adds "no" versions
+// an extension to setting_bool; this automatically adds "no" versions
 // to the list, and will allow them to be used to act as `-name 0`.
 class setting_invertible_bool : public setting_bool
 {
