@@ -94,11 +94,11 @@ int dump_vertnum = -1;
 
 namespace settings
 {
-settings_group worldspawn_group{"Overridable worldspawn keys", 500};
-settings_group output_group{"Output format options", 30};
-settings_group debug_group{"Debug modes", 40};
-settings_group postprocessing_group{"Postprocessing options", 50};
-settings_group experimental_group{"Experimental options", 60};
+setting_group worldspawn_group{"Overridable worldspawn keys", 500};
+setting_group output_group{"Output format options", 30};
+setting_group debug_group{"Debug modes", 40};
+setting_group postprocessing_group{"Postprocessing options", 50};
+setting_group experimental_group{"Experimental options", 60};
 
 void light_settings::initialize(int argc, const char **argv)
 {
@@ -898,7 +898,7 @@ int light_main(int argc, const char **argv)
 
     // mxd. Use 1.0 rangescale as a default to better match with qrad3/arghrad
     if ((bspdata.loadversion->game->id == GAME_QUAKE_II) && !options.rangescale.isChanged()) {
-        options.rangescale = std::move(settings::lockable_scalar(nullptr, options.rangescale.primaryName().c_str(), 1.0f, 0.0f,
+        options.rangescale = std::move(settings::setting_scalar(nullptr, options.rangescale.primaryName().c_str(), 1.0f, 0.0f,
             100.0f)); // Gross hacks to avoid displaying this in OptionsSummary...
     }
 

@@ -28,8 +28,6 @@
 #include <light/ltface.hh>
 #include <common/bsputils.hh>
 
-using strings = std::vector<std::string>;
-
 std::vector<light_t> all_lights;
 std::vector<sun_t> all_suns;
 std::vector<entdict_t> entdicts;

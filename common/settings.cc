@@ -23,8 +23,8 @@
 
 namespace settings
 {
-lockable_base::lockable_base(
-    dict *dictionary, const strings &names, const settings_group *group, const char *description)
+setting_base::setting_base(
+    setting_container *dictionary, const nameset &names, const setting_group *group, const char *description)
     : _names(names), _group(group), _description(description)
 {
     Q_assert(_names.size() > 0);
@@ -34,10 +34,10 @@ lockable_base::lockable_base(
     }
 }
 
-settings_group performance_group{"Performance", 10};
-settings_group logging_group{"Logging", 5};
+setting_group performance_group{"Performance", 10};
+setting_group logging_group{"Logging", 5};
 
-[[noreturn]] void dict::printHelp()
+[[noreturn]] void setting_container::printHelp()
 {
     fmt::print("{}usage: {} [-help/-h/-?] [-options] {}\n\n", usage, programName, remainderName);
 
@@ -62,7 +62,7 @@ settings_group logging_group{"Logging", 5};
     exit(0);
 }
 
-void dict::printSummary()
+void setting_container::printSummary()
 {
     LogPrint("\n--- Options Summary ---\n");
     for (auto setting : _settings) {
@@ -74,7 +74,7 @@ void dict::printSummary()
     LogPrint("\n");
 }
 
-std::vector<std::string> dict::parse(parser_base_t &parser)
+std::vector<std::string> setting_container::parse(parser_base_t &parser)
 {
     // the settings parser loop will continuously eat tokens as long as
     // it begins with a -; once we have no more settings to consume, we

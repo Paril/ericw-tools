@@ -39,10 +39,10 @@ constexpr const char *IntroString = "---- qbsp / ericw-tools " stringify(ERICWTO
 // command line flags
 namespace settings
 {
-settings_group game_target_group{"Game/BSP Target", -1};
-settings_group map_development_group{"Map development", 1};
-settings_group common_format_group{"Common format options", 2};
-settings_group debugging_group{"Advanced/tool debugging", 500};
+setting_group game_target_group{"Game/BSP Target", -1};
+setting_group map_development_group{"Map development", 1};
+setting_group common_format_group{"Common format options", 2};
+setting_group debugging_group{"Advanced/tool debugging", 500};
 
 inline void set_target_version(const bspversion_t *version)
 {

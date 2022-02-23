@@ -53,31 +53,33 @@ enum class source
     COMMANDLINE = 2
 };
 
-using strings = std::vector<std::string>;
+class nameset : public std::vector<std::string>
+{
+public:
+    nameset(const char *str) : vector<std::string>({ str }) { }
+    nameset(const std::string &str) : vector<std::string>({ str }) { }
+    nameset(const std::initializer_list<const char *> &strs) : vector(strs.begin(), strs.end()) { }
+    nameset(const std::initializer_list<std::string> &strs) : vector(strs) { }
+};
 
-struct settings_group
+struct setting_group
 {
     const char *name;
     const int32_t order;
 };
 
-class dict;
+class setting_container;
 
 // base class for any lockable setting
-class lockable_base
+class setting_base
 {
 protected:
     source _source = source::DEFAULT;
-    strings _names;
-    const settings_group *_group;
+    nameset _names;
+    const setting_group *_group;
     const char *_description;
 
-    lockable_base(dict *dictionary, const strings &names, const settings_group *group, const char *description);
-
-    inline lockable_base(dict *dictionary, const char *name, const settings_group *group, const char *description)
-        : lockable_base(dictionary, strings{name}, group, description)
-    {
-    }
+    setting_base(setting_container *dictionary, const nameset &names, const setting_group *group, const char *description);
 
     constexpr bool changeSource(source newSource)
     {
@@ -136,8 +138,8 @@ protected:
 
 public:
     inline const std::string &primaryName() const { return _names.at(0); }
-    inline const strings &names() const { return _names; }
-    inline const settings_group *getGroup() const { return _group; }
+    inline const nameset &names() const { return _names; }
+    inline const setting_group *getGroup() const { return _group; }
     inline const char *getDescription() const { return _description; }
 
     constexpr bool isChanged() const { return _source != source::DEFAULT; }
@@ -161,21 +163,15 @@ public:
 // a special type of lockable that acts as a flag but
 // calls back to a function to actually do the tasks.
 // be careful because this won't show up in summary.
-class lockable_func : public lockable_base
+class setting_func : public setting_base
 {
 protected:
     std::function<void()> _func;
 
 public:
-    inline lockable_func(dict *dictionary, const strings &names, std::function<void()> func,
-        const settings_group *group = nullptr, const char *description = "")
-        : lockable_base(dictionary, names, group, description), _func(func)
-    {
-    }
-
-    inline lockable_func(dict *dictionary, const char *name, std::function<void()> func,
-        const settings_group *group = nullptr, const char *description = "")
-        : lockable_func(dictionary, strings{name}, func, group, description)
+    inline setting_func(setting_container *dictionary, const nameset &names, std::function<void()> func,
+        const setting_group *group = nullptr, const char *description = "")
+        : setting_base(dictionary, "test", group, description), _func(func)
     {
     }
 
@@ -192,7 +188,7 @@ public:
 
 // base class for a lockable setting that has its own value
 template<typename T>
-class lockable_value : public lockable_base
+class setting_value : public setting_base
 {
 protected:
     T _value;
@@ -214,15 +210,9 @@ protected:
     }
 
 public:
-    inline lockable_value(dict *dictionary, const strings &names, T v, const settings_group *group = nullptr,
+    inline setting_value(setting_container *dictionary, const nameset &names, T v, const setting_group *group = nullptr,
         const char *description = "")
-        : lockable_base(dictionary, names, group, description), _value(v)
-    {
-    }
-
-    inline lockable_value(
-        dict *dictionary, const char *name, T v, const settings_group *group = nullptr, const char *description = "")
-        : lockable_value(dictionary, strings{name}, v, group, description)
+        : setting_base(dictionary, names, group, description), _value(v)
     {
     }
 
@@ -233,7 +223,7 @@ public:
     inline void setValue(T f) { setValueInternal(f, source::MAP); }
 };
 
-class lockable_bool : public lockable_value<bool>
+class setting_bool : public setting_value<bool>
 {
 private:
     bool _default;
@@ -264,15 +254,9 @@ protected:
     }
 
 public:
-    inline lockable_bool(dict *dictionary, const strings &names, bool v, const settings_group *group = nullptr,
+    inline setting_bool(setting_container *dictionary, const nameset &names, bool v, const setting_group *group = nullptr,
         const char *description = "")
-        : lockable_value(dictionary, names, v, group, description), _default(v)
-    {
-    }
-
-    inline lockable_bool(
-        dict *dictionary, const char *name, bool v, const settings_group *group = nullptr, const char *description = "")
-        : lockable_bool(dictionary, strings{name}, v, group, description)
+        : setting_value(dictionary, names, v, group, description), _default(v)
     {
     }
 
@@ -288,12 +272,12 @@ public:
 
 // an extension to lockable_bool; this automatically adds "no" versions
 // to the list, and will allow them to be used to act as `-name 0`.
-class lockable_invertable_bool : public lockable_bool
+class setting_invertible_bool : public setting_bool
 {
 private:
-    strings extendNames(const strings &names)
+    nameset extendNames(const nameset &names)
     {
-        strings n = names;
+        nameset n = names;
 
         for (auto &name : names) {
             n.push_back("no" + name);
@@ -303,15 +287,9 @@ private:
     }
 
 public:
-    inline lockable_invertable_bool(dict *dictionary, const strings &names, bool v,
-        const settings_group *group = nullptr, const char *description = "")
-        : lockable_bool(dictionary, extendNames(names), v, group, description)
-    {
-    }
-
-    inline lockable_invertable_bool(
-        dict *dictionary, const char *name, bool v, const settings_group *group = nullptr, const char *description = "")
-        : lockable_invertable_bool(dictionary, strings{name}, v, group, description)
+    inline setting_invertible_bool(setting_container *dictionary, const nameset &names, bool v,
+        const setting_group *group = nullptr, const char *description = "")
+        : setting_bool(dictionary, extendNames(names), v, group, description)
     {
     }
 
@@ -321,22 +299,16 @@ public:
     }
 };
 
-class lockable_redirect : public lockable_base
+class setting_redirect : public setting_base
 {
 private:
-    std::vector<lockable_base *> _settings;
+    std::vector<setting_base *> _settings;
 
 public:
-    inline lockable_redirect(dict *dictionary, const strings &names,
-        const std::initializer_list<lockable_base *> &settings, const settings_group *group = nullptr,
+    inline setting_redirect(setting_container *dictionary, const nameset &names,
+        const std::initializer_list<setting_base *> &settings, const setting_group *group = nullptr,
         const char *description = "")
-        : lockable_base(dictionary, names, group, description), _settings(settings)
-    {
-    }
-
-    inline lockable_redirect(dict *dictionary, const char *name, const std::initializer_list<lockable_base *> &settings,
-        const settings_group *group = nullptr, const char *description = "")
-        : lockable_redirect(dictionary, strings{name}, settings, group, description)
+        : setting_base(dictionary, names, group, description), _settings(settings)
     {
     }
 
@@ -368,7 +340,7 @@ public:
 };
 
 template<typename T>
-class lockable_numeric : public lockable_value<T>
+class setting_numeric : public setting_value<T>
 {
 protected:
     T _min, _max;
@@ -384,13 +356,13 @@ protected:
             f = _max;
         }
 
-        lockable_value::setValueInternal(f, newsource);
+        setting_value::setValueInternal(f, newsource);
     }
 
 public:
-    inline lockable_numeric(dict *dictionary, strings names, T v, T minval, T maxval,
-        const settings_group *group = nullptr, const char *description = "")
-        : lockable_value(dictionary, names, v, group, description), _min(minval), _max(maxval)
+    inline setting_numeric(setting_container *dictionary, const nameset &names, T v, T minval, T maxval,
+        const setting_group *group = nullptr, const char *description = "")
+        : setting_value(dictionary, names, v, group, description), _min(minval), _max(maxval)
     {
         // check the default value is valid
         Q_assert(_min < _max);
@@ -398,24 +370,11 @@ public:
         Q_assert(_value <= _max);
     }
 
-    inline lockable_numeric(dict *dictionary, const char *name, T v, T minval, T maxval,
-        const settings_group *group = nullptr, const char *description = "")
-        : lockable_numeric(dictionary, strings{name}, v, minval, maxval, group, description)
-    {
-    }
-
     template<typename = std::enable_if_t<!std::is_enum_v<T>>>
-    inline lockable_numeric(
-        dict *dictionary, strings names, T v, const settings_group *group = nullptr, const char *description = "")
-        : lockable_numeric(
+    inline setting_numeric(
+        setting_container *dictionary, const nameset &names, T v, const setting_group *group = nullptr, const char *description = "")
+        : setting_numeric(
               dictionary, names, v, std::numeric_limits<T>::lowest(), std::numeric_limits<T>::max(), group, description)
-    {
-    }
-
-    template<typename = std::enable_if_t<!std::is_enum_v<T>>>
-    inline lockable_numeric(
-        dict *dictionary, const char *name, T v, const settings_group *group = nullptr, const char *description = "")
-        : lockable_numeric(dictionary, strings{name}, v, group, description)
     {
     }
 
@@ -454,27 +413,20 @@ public:
     virtual std::string format() const override { return "n"; }
 };
 
-using lockable_scalar = lockable_numeric<vec_t>;
-using lockable_int32 = lockable_numeric<int32_t>;
+using setting_scalar = setting_numeric<vec_t>;
+using setting_int32 = setting_numeric<int32_t>;
 
 template<typename T>
-class lockable_enum : public lockable_value<T>
+class setting_enum : public setting_value<T>
 {
 private:
     std::map<std::string, T, natural_less> _values;
 
 public:
-    inline lockable_enum(dict *dictionary, strings names, T v,
-        const std::initializer_list<std::pair<const char *, T>> &enumValues, const settings_group *group = nullptr,
+    inline setting_enum(setting_container *dictionary, const nameset &names, T v,
+        const std::initializer_list<std::pair<const char *, T>> &enumValues, const setting_group *group = nullptr,
         const char *description = "")
-        : lockable_value(dictionary, names, v, group, description), _values(enumValues.begin(), enumValues.end())
-    {
-    }
-
-    inline lockable_enum(dict *dictionary, const char *name, T v,
-        const std::initializer_list<std::pair<const char *, T>> &enumValues, const settings_group *group = nullptr,
-        const char *description = "")
-        : lockable_enum(dictionary, strings{name}, v, enumValues, group, description)
+        : setting_value(dictionary, names, v, group, description), _values(enumValues.begin(), enumValues.end())
     {
     }
 
@@ -519,21 +471,15 @@ public:
     }
 };
 
-class lockable_string : public lockable_value<std::string>
+class setting_string : public setting_value<std::string>
 {
 private:
     std::string _format;
 
 public:
-    inline lockable_string(dict *dictionary, strings names, std::string v, const std::string_view &format = "\"str\"",
-        const settings_group *group = nullptr, const char *description = "")
-        : lockable_value(dictionary, names, v, group, description), _format(format)
-    {
-    }
-
-    inline lockable_string(dict *dictionary, const char *name, std::string v,
-        const std::string_view &format = "\"str\"", const settings_group *group = nullptr, const char *description = "")
-        : lockable_string(dictionary, strings{name}, v, format, group, description)
+    inline setting_string(setting_container *dictionary, const nameset &names, std::string v, const std::string_view &format = "\"str\"",
+        const setting_group *group = nullptr, const char *description = "")
+        : setting_value(dictionary, names, v, group, description), _format(format)
     {
     }
 
@@ -552,26 +498,20 @@ public:
     virtual std::string format() const override { return _format; }
 };
 
-class lockable_vec3 : public lockable_value<qvec3d>
+class setting_vec3 : public setting_value<qvec3d>
 {
 protected:
     virtual qvec3d transformVec3Value(const qvec3d &val) const { return val; }
 
     virtual void setValueInternal(qvec3d f, source newsource) override
     {
-        lockable_value::setValueInternal(transformVec3Value(f), newsource);
+        setting_value::setValueInternal(transformVec3Value(f), newsource);
     }
 
 public:
-    inline lockable_vec3(dict *dictionary, strings names, vec_t a, vec_t b, vec_t c,
-        const settings_group *group = nullptr, const char *description = "")
-        : lockable_value(dictionary, names, transformVec3Value({a, b, c}), group, description)
-    {
-    }
-
-    inline lockable_vec3(dict *dictionary, const char *name, vec_t a, vec_t b, vec_t c,
-        const settings_group *group = nullptr, const char *description = "")
-        : lockable_vec3(dictionary, strings{name}, a, b, c, group, description)
+    inline setting_vec3(setting_container *dictionary, const nameset &names, vec_t a, vec_t b, vec_t c,
+        const setting_group *group = nullptr, const char *description = "")
+        : setting_value(dictionary, names, transformVec3Value({a, b, c}), group, description)
     {
     }
 
@@ -602,31 +542,31 @@ public:
     virtual std::string format() const override { return "x y z"; }
 };
 
-class lockable_mangle : public lockable_vec3
+class setting_mangle : public setting_vec3
 {
 protected:
     virtual qvec3d transformVec3Value(const qvec3d &val) const override { return qv::vec_from_mangle(val); }
 
 public:
-    using lockable_vec3::lockable_vec3;
+    using setting_vec3::setting_vec3;
 };
 
-class lockable_color : public lockable_vec3
+class setting_color : public setting_vec3
 {
 protected:
     virtual qvec3d transformVec3Value(const qvec3d &val) const override { return qv::normalize_color_format(val); }
 
 public:
-    using lockable_vec3::lockable_vec3;
+    using setting_vec3::setting_vec3;
 };
 
 // settings dictionary
 
-class dict
+class setting_container
 {
-    struct settings_less
+    struct less
     {
-        constexpr bool operator()(const settings_group *a, const settings_group *b) const
+        constexpr bool operator()(const setting_group *a, const setting_group *b) const
         {
             int32_t a_order = a ? a->order : std::numeric_limits<int32_t>::min();
             int32_t b_order = b ? b->order : std::numeric_limits<int32_t>::min();
@@ -635,14 +575,14 @@ class dict
         }
     };
 
-    std::map<std::string, lockable_base *> _settingsmap;
-    std::set<lockable_base *> _settings;
-    std::map<const settings_group *, std::set<lockable_base *>, settings_less> _groupedSettings;
+    std::map<std::string, setting_base *> _settingsmap;
+    std::set<setting_base *> _settings;
+    std::map<const setting_group *, std::set<setting_base *>, less> _groupedSettings;
 
 public:
     std::string programName, remainderName = "filename", usage;
 
-    inline void registerSetting(lockable_base *setting)
+    inline void registerSetting(setting_base *setting)
     {
         for (const auto &name : setting->names()) {
             Q_assert(_settingsmap.find(name) == _settingsmap.end());
@@ -661,12 +601,12 @@ public:
         }
     }
 
-    inline void registerSettings(const std::initializer_list<lockable_base *> &settings)
+    inline void registerSettings(const std::initializer_list<setting_base *> &settings)
     {
         registerSettings(settings.begin(), settings.end());
     }
 
-    inline lockable_base *findSetting(const std::string &name) const
+    inline setting_base *findSetting(const std::string &name) const
     {
         // strip off leading underscores
         if (name.find("_") == 0) {
@@ -682,7 +622,7 @@ public:
 
     inline void setSetting(const std::string &name, const std::string &value, bool locked)
     {
-        lockable_base *setting = findSetting(name);
+        setting_base *setting = findSetting(name);
 
         if (setting == nullptr) {
             if (locked) {
@@ -723,18 +663,18 @@ public:
 };
 
 // global groups
-extern settings_group performance_group, logging_group;
+extern setting_group performance_group, logging_group;
 
-class common_settings : public virtual dict
+class common_settings : public virtual setting_container
 {
 public:
     // global settings
-    lockable_int32 threads{
+    setting_int32 threads{
         this, "threads", 0, &performance_group, "number of threads to use, maximum; leave 0 for automatic"};
 
-    lockable_bool verbose{this, strings{"verbose", "v"}, false, &logging_group, "verbose output"};
-    lockable_bool quiet{this, strings{"quiet", "noverbose"}, false, &logging_group, "suppress non-important output"};
-    lockable_bool nopercent{this, "nopercent", false, &logging_group, "don't output percentage messages"};
+    setting_bool verbose{this, {"verbose", "v"}, false, &logging_group, "verbose output"};
+    setting_bool quiet{this, {"quiet", "noverbose"}, false, &logging_group, "suppress non-important output"};
+    setting_bool nopercent{this, "nopercent", false, &logging_group, "don't output percentage messages"};
 
     virtual void setParameters(int argc, const char **argv);
 

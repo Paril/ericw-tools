@@ -212,23 +212,23 @@ int CompressRow(const uint8_t *vis, const int numbytes, uint8_t *out);
 
 namespace settings
 {
-extern settings_group output_group;
-extern settings_group advanced_group;
+extern setting_group output_group;
+extern setting_group advanced_group;
 
 class vis_settings : public common_settings
 {
 public:
-    lockable_bool fast{this, "fast", false, &performance_group, "run very simple & fast vis procedure"};
-    lockable_int32 level{this, "level", 4, 0, 4, &advanced_group, "number of iterations for tests"};
-    lockable_bool noambientsky{this, "noambientsky", false, &output_group, "don't output ambient sky sounds"};
-    lockable_bool noambientwater{this, "noambientwater", false, &output_group, "don't output ambient water sounds"};
-    lockable_bool noambientslime{this, "noambientslime", false, &output_group, "don't output ambient slime sounds"};
-    lockable_bool noambientlava{this, "noambientlava", false, &output_group, "don't output ambient lava sounds"};
-    lockable_redirect noambient{this, "noambient", {&noambientsky, &noambientwater, &noambientslime, &noambientlava},
+    setting_bool fast{this, "fast", false, &performance_group, "run very simple & fast vis procedure"};
+    setting_int32 level{this, "level", 4, 0, 4, &advanced_group, "number of iterations for tests"};
+    setting_bool noambientsky{this, "noambientsky", false, &output_group, "don't output ambient sky sounds"};
+    setting_bool noambientwater{this, "noambientwater", false, &output_group, "don't output ambient water sounds"};
+    setting_bool noambientslime{this, "noambientslime", false, &output_group, "don't output ambient slime sounds"};
+    setting_bool noambientlava{this, "noambientlava", false, &output_group, "don't output ambient lava sounds"};
+    setting_redirect noambient{this, "noambient", {&noambientsky, &noambientwater, &noambientslime, &noambientlava},
         &output_group, "don't output ambient sounds at all"};
-    lockable_scalar visdist{
+    setting_scalar visdist{
         this, "visdist", 0.0, &advanced_group, "control the distance required for a portal to be considered seen"};
-    lockable_bool nostate{this, "nostate", false, &advanced_group, "ignore saved state files, for forced re-runs"};
+    setting_bool nostate{this, "nostate", false, &advanced_group, "ignore saved state files, for forced re-runs"};
 
     fs::path sourceMap;
 

@@ -50,7 +50,7 @@ enum light_formula_t
     LF_COUNT
 };
 
-class light_t : public settings::dict
+class light_t : public settings::setting_container
 {
 public:
     bool spotlight = false;
@@ -68,35 +68,35 @@ public:
 
     aabb3d bounds;
 
-    settings::lockable_scalar light{this, "light", DEFAULTLIGHTLEVEL};
-    settings::lockable_scalar atten{this, "wait", 1.0, 0.0, std::numeric_limits<vec_t>::max()};
-    settings::lockable_numeric<light_formula_t> formula{this, "delay", LF_LINEAR, LF_LINEAR, LF_INVERSE2A};
-    settings::lockable_scalar spotangle{this, "angle", 40.0};
-    settings::lockable_scalar spotangle2{this, "softangle", 0.0};
-    settings::lockable_numeric<int32_t> style{this, "style", 0.0, 0, 254};
-    settings::lockable_scalar anglescale{
-        this, settings::strings{"anglesense", "anglescale"}, -1.0}; // fallback to worldspawn
-    settings::lockable_scalar dirtscale{this, "dirtscale", 0.0};
-    settings::lockable_scalar dirtgain{this, "dirtgain", 0};
-    settings::lockable_scalar dirt{this, "dirt", 0};
-    settings::lockable_scalar deviance{this, "deviance", 0};
-    settings::lockable_int32 samples{this, "samples", 16, 0, std::numeric_limits<int32_t>::max()};
-    settings::lockable_scalar projfov{this, "project_fov", 90};
-    settings::lockable_scalar bouncescale{this, "bouncescale", 1.0};
-    settings::lockable_scalar dirt_off_radius{this, "dirt_off_radius", 0.0};
-    settings::lockable_scalar dirt_on_radius{this, "dirt_on_radius", 0.0};
-    settings::lockable_bool sun{this, "sun", false}; // mxd
-    settings::lockable_bool sunlight2{this, "sunlight2", 0};
-    settings::lockable_bool sunlight3{this, "sunlight3", 0};
-    settings::lockable_scalar falloff{this, "falloff", 0.0, 0.0, std::numeric_limits<vec_t>::max()}; // mxd
-    settings::lockable_bool bleed{this, "bleed", false};
-    settings::lockable_vec3 origin{this, "origin", 0, 0, 0};
-    settings::lockable_color color{this, "color", 255.0, 255.0, 255.0};
-    settings::lockable_vec3 mangle{this, "mangle", 0, 0, 0}; // not transformed to vec
-    settings::lockable_vec3 projangle{this, "project_mangle", 20, 0, 0}; // not transformed to vec
-    settings::lockable_string project_texture{this, "project_texture", ""};
-    settings::lockable_string suntexture{this, "suntexture", ""};
-    settings::lockable_bool nostaticlight{this, "nostaticlight", false};
+    settings::setting_scalar light{this, "light", DEFAULTLIGHTLEVEL};
+    settings::setting_scalar atten{this, "wait", 1.0, 0.0, std::numeric_limits<vec_t>::max()};
+    settings::setting_numeric<light_formula_t> formula{this, "delay", LF_LINEAR, LF_LINEAR, LF_INVERSE2A};
+    settings::setting_scalar spotangle{this, "angle", 40.0};
+    settings::setting_scalar spotangle2{this, "softangle", 0.0};
+    settings::setting_numeric<int32_t> style{this, "style", 0.0, 0, 254};
+    settings::setting_scalar anglescale{
+        this, {"anglesense", "anglescale"}, -1.0}; // fallback to worldspawn
+    settings::setting_scalar dirtscale{this, "dirtscale", 0.0};
+    settings::setting_scalar dirtgain{this, "dirtgain", 0};
+    settings::setting_scalar dirt{this, "dirt", 0};
+    settings::setting_scalar deviance{this, "deviance", 0};
+    settings::setting_int32 samples{this, "samples", 16, 0, std::numeric_limits<int32_t>::max()};
+    settings::setting_scalar projfov{this, "project_fov", 90};
+    settings::setting_scalar bouncescale{this, "bouncescale", 1.0};
+    settings::setting_scalar dirt_off_radius{this, "dirt_off_radius", 0.0};
+    settings::setting_scalar dirt_on_radius{this, "dirt_on_radius", 0.0};
+    settings::setting_bool sun{this, "sun", false}; // mxd
+    settings::setting_bool sunlight2{this, "sunlight2", 0};
+    settings::setting_bool sunlight3{this, "sunlight3", 0};
+    settings::setting_scalar falloff{this, "falloff", 0.0, 0.0, std::numeric_limits<vec_t>::max()}; // mxd
+    settings::setting_bool bleed{this, "bleed", false};
+    settings::setting_vec3 origin{this, "origin", 0, 0, 0};
+    settings::setting_color color{this, "color", 255.0, 255.0, 255.0};
+    settings::setting_vec3 mangle{this, "mangle", 0, 0, 0}; // not transformed to vec
+    settings::setting_vec3 projangle{this, "project_mangle", 20, 0, 0}; // not transformed to vec
+    settings::setting_string project_texture{this, "project_texture", ""};
+    settings::setting_string suntexture{this, "suntexture", ""};
+    settings::setting_bool nostaticlight{this, "nostaticlight", false};
 
     const char *classname() const;
 

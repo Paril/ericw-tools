@@ -74,21 +74,15 @@ struct wadpath
     inline bool operator<(const wadpath &other) const { return path < other.path; }
 };
 
-struct lockable_wadpathset : public lockable_base
+struct lockable_wadpathset : public setting_base
 {
 private:
     std::set<wadpath> _paths;
 
 public:
     inline lockable_wadpathset(
-        dict *dictionary, const strings &names, const settings_group *group = nullptr, const char *description = "")
-        : lockable_base(dictionary, names, group, description)
-    {
-    }
-
-    inline lockable_wadpathset(
-        dict *dictionary, const char *name, const settings_group *group = nullptr, const char *description = "")
-        : lockable_wadpathset(dictionary, strings{name}, group, description)
+        setting_container *dictionary, const nameset &names, const setting_group *group = nullptr, const char *description = "")
+        : setting_base(dictionary, names, group, description)
     {
     }
 
@@ -131,85 +125,85 @@ public:
     virtual std::string format() const { return "path/to/wads"; }
 };
 
-extern settings_group game_target_group;
-extern settings_group map_development_group;
-extern settings_group common_format_group;
-extern settings_group debugging_group;
+extern setting_group game_target_group;
+extern setting_group map_development_group;
+extern setting_group common_format_group;
+extern setting_group debugging_group;
 
 class qbsp_settings : public common_settings
 {
 public:
     inline qbsp_settings() { }
 
-    lockable_bool hexen2{this, "hexen2", false, &game_target_group, "target Hexen II's BSP format"};
-    lockable_bool hlbsp{this, "hlbsp", false, &game_target_group, "target Half Life's BSP format"};
-    lockable_bool q2bsp{this, "q2bsp", false, &game_target_group, "target Quake II's BSP format"};
-    lockable_bool qbism{this, "qbism", false, &game_target_group, "target Qbism's extended Quake II BSP format"};
-    lockable_bool bsp2{this, "bsp2", false, &game_target_group, "target Quake's extended BSP2 format"};
-    lockable_bool bsp2rmq{
+    setting_bool hexen2{this, "hexen2", false, &game_target_group, "target Hexen II's BSP format"};
+    setting_bool hlbsp{this, "hlbsp", false, &game_target_group, "target Half Life's BSP format"};
+    setting_bool q2bsp{this, "q2bsp", false, &game_target_group, "target Quake II's BSP format"};
+    setting_bool qbism{this, "qbism", false, &game_target_group, "target Qbism's extended Quake II BSP format"};
+    setting_bool bsp2{this, "bsp2", false, &game_target_group, "target Quake's extended BSP2 format"};
+    setting_bool bsp2rmq{
         this, "2psb", false, &game_target_group, "target Quake's extended 2PSB format (RMQ compatible)"};
-    lockable_int32 subdivide{this, "subdivide", 240, &common_format_group,
+    setting_int32 subdivide{this, "subdivide", 240, &common_format_group,
         "change the subdivide threshold, in luxels. 0 will disable subdivision entirely"};
-    lockable_bool nofill{this, "nofill", false, &debugging_group, "don't perform outside filling"};
-    lockable_bool noclip{this, "noclip", false, &common_format_group, "don't write clip nodes (Q1-like BSP formats)"};
-    lockable_bool noskip{this, "noskip", false, &debugging_group, "don't remove faces with the 'skip' texture"};
-    lockable_bool nodetail{this, "nodetail", false, &debugging_group, "treat all detail brushes to structural"};
-    lockable_bool onlyents{this, "onlyents", false, &map_development_group, "only updates .MAP entities"};
-    lockable_bool splitsky{this, "splitsky", false, &debugging_group, "doesn't combine sky faces into one large face"};
-    lockable_bool splitturb{this, strings{"litwater", "splitturb"}, false, &common_format_group,
+    setting_bool nofill{this, "nofill", false, &debugging_group, "don't perform outside filling"};
+    setting_bool noclip{this, "noclip", false, &common_format_group, "don't write clip nodes (Q1-like BSP formats)"};
+    setting_bool noskip{this, "noskip", false, &debugging_group, "don't remove faces with the 'skip' texture"};
+    setting_bool nodetail{this, "nodetail", false, &debugging_group, "treat all detail brushes to structural"};
+    setting_bool onlyents{this, "onlyents", false, &map_development_group, "only updates .MAP entities"};
+    setting_bool splitsky{this, "splitsky", false, &debugging_group, "doesn't combine sky faces into one large face"};
+    setting_bool splitturb{this, {"litwater", "splitturb"}, false, &common_format_group,
         "doesn't combine water faces into one large face"};
-    lockable_redirect splitspecial{this, "splitspecial", {&splitsky, &splitturb}, &debugging_group,
+    setting_redirect splitspecial{this, "splitspecial", {&splitsky, &splitturb}, &debugging_group,
         "doesn't combine sky and water faces into one large face (splitturb + splitsky)"};
-    lockable_invertable_bool transwater{
+    setting_invertible_bool transwater{
         this, "transwater", true, &common_format_group, "compute portal information for transparent water"};
-    lockable_bool transsky{
+    setting_bool transsky{
         this, "transsky", false, &map_development_group, "compute portal information for transparent sky"};
-    lockable_bool notextures{this, "notex", false, &common_format_group,
+    setting_bool notextures{this, "notex", false, &common_format_group,
         "write only placeholder textures to depend upon replacements, keep file sizes down, or to skirt copyrights"};
-    lockable_enum<conversion_t> convertmapformat{this, "convert", conversion_t::none,
+    setting_enum<conversion_t> convertmapformat{this, "convert", conversion_t::none,
         {{"quake", conversion_t::quake}, {"quake2", conversion_t::quake2}, {"valve", conversion_t::valve},
             {"bp", conversion_t::bp}},
         &common_format_group, "convert a .MAP to a different .MAP format"};
-    lockable_invertable_bool oldaxis{this, "oldaxis", true, &debugging_group,
+    setting_invertible_bool oldaxis{this, "oldaxis", true, &debugging_group,
         "uses alternate texture alignment which was default in tyrutils-ericw v0.15.1 and older"};
-    lockable_bool forcegoodtree{
+    setting_bool forcegoodtree{
         this, "forcegoodtree", false, &debugging_group, "force use of expensive processing for SolidBSP stage"};
-    lockable_scalar midsplitsurffraction{this, "midsplitsurffraction", 0.f, 0.f, 1.f, &debugging_group,
+    setting_scalar midsplitsurffraction{this, "midsplitsurffraction", 0.f, 0.f, 1.f, &debugging_group,
         "if 0 (default), use `maxnodesize` for deciding when to switch to midsplit bsp heuristic.\nif 0 < midsplitSurfFraction <= 1, switch to midsplit if the node contains more than this fraction of the model's\ntotal surfaces. Try 0.15 to 0.5. Works better than maxNodeSize for maps with a 3D skybox (e.g. +-128K unit maps)"};
-    lockable_int32 maxnodesize{this, "maxnodesize", 1024, &debugging_group,
+    setting_int32 maxnodesize{this, "maxnodesize", 1024, &debugging_group,
         "triggers simpler BSP Splitting when node exceeds size (default 1024, 0 to disable)"};
-    lockable_bool oldrottex{
+    setting_bool oldrottex{
         this, "oldrottex", false, &debugging_group, "use old rotate_ brush texturing aligned at (0 0 0)"};
-    lockable_scalar epsilon{
+    setting_scalar epsilon{
         this, "epsilon", 0.0001, 0.0, 1.0, &debugging_group, "customize epsilon value for point-on-plane checks"};
-    lockable_bool contenthack{this, "contenthack", false, &debugging_group,
+    setting_bool contenthack{this, "contenthack", false, &debugging_group,
         "hack to fix leaks through solids. causes missing faces in some cases so disabled by default"};
-    lockable_bool leaktest{this, "leaktest", false, &map_development_group, "make compilation fail if the map leaks"};
-    lockable_bool includeskip{this, "includeskip", false, &common_format_group,
+    setting_bool leaktest{this, "leaktest", false, &map_development_group, "make compilation fail if the map leaks"};
+    setting_bool includeskip{this, "includeskip", false, &common_format_group,
         "don't cull skip faces from the list of renderable surfaces (Q2RTX)"};
-    lockable_scalar worldextent{
+    setting_scalar worldextent{
         this, "worldextent", 0.0, &debugging_group, "explicitly provide world extents; 0 will auto-detect"};
-    lockable_int32 leakdist{this, "leakdist", 2, &debugging_group, "space between leakfile points"};
-    lockable_bool forceprt1{
+    setting_int32 leakdist{this, "leakdist", 2, &debugging_group, "space between leakfile points"};
+    setting_bool forceprt1{
         this, "forceprt1", false, &debugging_group, "force a PRT1 output file even if PRT2 is required for vis"};
-    lockable_bool notjunc{this, "notjunc", false, &debugging_group, "don't fix T-junctions"};
-    lockable_bool objexport{
+    setting_bool notjunc{this, "notjunc", false, &debugging_group, "don't fix T-junctions"};
+    setting_bool objexport{
         this, "objexport", false, &debugging_group, "export the map file as .OBJ models during various CSG phases"};
-    lockable_bool wrbrushes{this, strings{"wrbrushes", "bspx"}, false, &common_format_group,
+    setting_bool wrbrushes{this, {"wrbrushes", "bspx"}, false, &common_format_group,
         "includes a list of brushes for brush-based collision"};
-    lockable_redirect wrbrushesonly{this, strings{"wrbrushesonly", "bspxonly"}, {&wrbrushes, &noclip},
+    setting_redirect wrbrushesonly{this, {"wrbrushesonly", "bspxonly"}, {&wrbrushes, &noclip},
         &common_format_group, "includes BSPX brushes and does not output clipping hulls (wrbrushes + noclip)"};
-    lockable_bool omitdetail{
+    setting_bool omitdetail{
         this, "omitdetail", false, &map_development_group, "omit *all* detail brushes from the compile"};
-    lockable_bool omitdetailwall{
+    setting_bool omitdetailwall{
         this, "omitdetailwall", false, &map_development_group, "func_detail_wall brushes are omitted from the compile"};
-    lockable_bool omitdetailillusionary{this, "omitdetailillusionary", false, &map_development_group,
+    setting_bool omitdetailillusionary{this, "omitdetailillusionary", false, &map_development_group,
         "func_detail_illusionary brushes are omitted from the compile"};
-    lockable_bool omitdetailfence{this, "omitdetailfence", false, &map_development_group,
+    setting_bool omitdetailfence{this, "omitdetailfence", false, &map_development_group,
         "func_detail_fence brushes are omitted from the compile"};
-    lockable_bool expand{
+    setting_bool expand{
         this, "expand", false, &common_format_group, "write hull 1 expanded brushes to expanded.map for debugging"};
-    lockable_wadpathset wadpaths{this, strings{"wadpath", "xwadpath"}, &debugging_group,
+    lockable_wadpathset wadpaths{this, {"wadpath", "xwadpath"}, &debugging_group,
         "add a path to the wad search paths; wads found in xwadpath's will not be embedded, otherwise they will be embedded (if not -notex)"};
 
     virtual void setParameters(int argc, const char **argv) override

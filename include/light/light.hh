@@ -207,7 +207,7 @@ constexpr qvec3d vec3_white{255};
 extern int dump_facenum;
 extern int dump_vertnum;
 
-class modelinfo_t : public settings::dict
+class modelinfo_t : public settings::setting_container
 {
     static constexpr vec_t DEFAULT_PHONG_ANGLE = 89.0;
 
@@ -217,18 +217,18 @@ public:
     float lightmapscale;
     qvec3d offset{};
 
-    settings::lockable_scalar minlight{this, "minlight", 0};
-    settings::lockable_scalar shadow{this, "shadow", 0};
-    settings::lockable_scalar shadowself{this, settings::strings{"shadowself", "selfshadow"}, 0};
-    settings::lockable_scalar shadowworldonly{this, "shadowworldonly", 0};
-    settings::lockable_scalar switchableshadow{this, "switchableshadow", 0};
-    settings::lockable_int32 switchshadstyle{this, "switchshadstyle", 0};
-    settings::lockable_scalar dirt{this, "dirt", 0};
-    settings::lockable_scalar phong{this, "phong", 0};
-    settings::lockable_scalar phong_angle{this, "phong_angle", 0};
-    settings::lockable_scalar alpha{this, "alpha", 1.0};
-    settings::lockable_color minlight_color{this, settings::strings{"minlight_color", "mincolor"}, 255.0, 255.0, 255.0};
-    settings::lockable_bool lightignore{this, "lightignore", false};
+    settings::setting_scalar minlight{this, "minlight", 0};
+    settings::setting_scalar shadow{this, "shadow", 0};
+    settings::setting_scalar shadowself{this, {"shadowself", "selfshadow"}, 0};
+    settings::setting_scalar shadowworldonly{this, "shadowworldonly", 0};
+    settings::setting_scalar switchableshadow{this, "switchableshadow", 0};
+    settings::setting_int32 switchshadstyle{this, "switchshadstyle", 0};
+    settings::setting_scalar dirt{this, "dirt", 0};
+    settings::setting_scalar phong{this, "phong", 0};
+    settings::setting_scalar phong_angle{this, "phong_angle", 0};
+    settings::setting_scalar alpha{this, "alpha", 1.0};
+    settings::setting_color minlight_color{this, {"minlight_color", "mincolor"}, 255.0, 255.0, 255.0};
+    settings::setting_bool lightignore{this, "lightignore", false};
 
     float getResolvedPhongAngle() const
     {
@@ -253,85 +253,85 @@ public:
 
 namespace settings
 {
-extern settings_group worldspawn_group;
+extern setting_group worldspawn_group;
 
-class worldspawn_keys : public virtual dict
+class worldspawn_keys : public virtual setting_container
 {
 public:
-    lockable_scalar scaledist{this, "dist", 1.0, 0.0, 100.0, &worldspawn_group};
-    lockable_scalar rangescale{this, "range", 0.5, 0.0, 100.0, &worldspawn_group};
-    lockable_scalar global_anglescale{this, strings{"anglescale", "anglesense"}, 0.5, 0.0, 1.0, &worldspawn_group};
-    lockable_scalar lightmapgamma{this, "gamma", 1.0, 0.0, 100.0, &worldspawn_group};
-    lockable_bool addminlight{this, "addmin", false, &worldspawn_group};
-    lockable_scalar minlight{this, strings{"light", "minlight"}, 0, &worldspawn_group};
-    lockable_color minlight_color{this, strings{"minlight_color", "mincolor"}, 255.0, 255.0, 255.0, &worldspawn_group};
-    lockable_bool spotlightautofalloff{this, "spotlightautofalloff", false, &worldspawn_group}; // mxd
-    lockable_int32 compilerstyle_start{
+    setting_scalar scaledist{this, "dist", 1.0, 0.0, 100.0, &worldspawn_group};
+    setting_scalar rangescale{this, "range", 0.5, 0.0, 100.0, &worldspawn_group};
+    setting_scalar global_anglescale{this, {"anglescale", "anglesense"}, 0.5, 0.0, 1.0, &worldspawn_group};
+    setting_scalar lightmapgamma{this, "gamma", 1.0, 0.0, 100.0, &worldspawn_group};
+    setting_bool addminlight{this, "addmin", false, &worldspawn_group};
+    setting_scalar minlight{this, {"light", "minlight"}, 0, &worldspawn_group};
+    setting_color minlight_color{this, {"minlight_color", "mincolor"}, 255.0, 255.0, 255.0, &worldspawn_group};
+    setting_bool spotlightautofalloff{this, "spotlightautofalloff", false, &worldspawn_group}; // mxd
+    setting_int32 compilerstyle_start{
         this, "compilerstyle_start", 32, &worldspawn_group}; // start index for switchable light styles, default 32
 
     /* dirt */
-    lockable_bool globalDirt{this, strings{"dirt", "dirty"}, false,
+    setting_bool globalDirt{this, {"dirt", "dirty"}, false,
         &worldspawn_group}; // apply dirt to all lights (unless they override it) + sunlight + minlight?
-    lockable_scalar dirtMode{this, "dirtmode", 0.0f, &worldspawn_group};
-    lockable_scalar dirtDepth{this, "dirtdepth", 128.0, 1.0, std::numeric_limits<vec_t>::infinity(), &worldspawn_group};
-    lockable_scalar dirtScale{this, "dirtscale", 1.0, 0.0, 100.0, &worldspawn_group};
-    lockable_scalar dirtGain{this, "dirtgain", 1.0, 0.0, 100.0, &worldspawn_group};
-    lockable_scalar dirtAngle{this, "dirtangle", 88.0, 1.0, 90.0, &worldspawn_group};
-    lockable_bool minlightDirt{this, "minlight_dirt", false, &worldspawn_group}; // apply dirt to minlight?
+    setting_scalar dirtMode{this, "dirtmode", 0.0f, &worldspawn_group};
+    setting_scalar dirtDepth{this, "dirtdepth", 128.0, 1.0, std::numeric_limits<vec_t>::infinity(), &worldspawn_group};
+    setting_scalar dirtScale{this, "dirtscale", 1.0, 0.0, 100.0, &worldspawn_group};
+    setting_scalar dirtGain{this, "dirtgain", 1.0, 0.0, 100.0, &worldspawn_group};
+    setting_scalar dirtAngle{this, "dirtangle", 88.0, 1.0, 90.0, &worldspawn_group};
+    setting_bool minlightDirt{this, "minlight_dirt", false, &worldspawn_group}; // apply dirt to minlight?
 
     /* phong */
-    lockable_bool phongallowed{this, "phong", true, &worldspawn_group};
-    lockable_scalar phongangle{this, "phong_angle", 0, &worldspawn_group};
+    setting_bool phongallowed{this, "phong", true, &worldspawn_group};
+    setting_scalar phongangle{this, "phong_angle", 0, &worldspawn_group};
 
     /* bounce */
-    lockable_bool bounce{this, "bounce", false, &worldspawn_group};
-    lockable_bool bouncestyled{this, "bouncestyled", false, &worldspawn_group};
-    lockable_scalar bouncescale{this, "bouncescale", 1.0, 0.0, 100.0, &worldspawn_group};
-    lockable_scalar bouncecolorscale{this, "bouncecolorscale", 0.0, 0.0, 1.0, &worldspawn_group};
+    setting_bool bounce{this, "bounce", false, &worldspawn_group};
+    setting_bool bouncestyled{this, "bouncestyled", false, &worldspawn_group};
+    setting_scalar bouncescale{this, "bouncescale", 1.0, 0.0, 100.0, &worldspawn_group};
+    setting_scalar bouncecolorscale{this, "bouncecolorscale", 0.0, 0.0, 1.0, &worldspawn_group};
 
     /* Q2 surface lights (mxd) */
-    lockable_scalar surflightscale{
+    setting_scalar surflightscale{
         this, "surflightscale", 0.3, &worldspawn_group}; // Strange defaults to match arghrad3 look...
-    lockable_scalar surflightbouncescale{this, "surflightbouncescale", 0.1, &worldspawn_group};
-    lockable_scalar surflightsubdivision{this, strings{"surflightsubdivision", "choplight"}, 16.0, 1.0, 8192.0,
+    setting_scalar surflightbouncescale{this, "surflightbouncescale", 0.1, &worldspawn_group};
+    setting_scalar surflightsubdivision{this, {"surflightsubdivision", "choplight"}, 16.0, 1.0, 8192.0,
         &worldspawn_group}; // "choplight" - arghrad3 name
 
     /* sunlight */
     /* sun_light, sun_color, sun_angle for http://www.bspquakeeditor.com/arghrad/ compatibility */
-    lockable_scalar sunlight{this, strings{"sunlight", "sun_light"}, 0.0, &worldspawn_group}; /* main sun */
-    lockable_color sunlight_color{this, strings{"sunlight_color", "sun_color"}, 255.0, 255.0, 255.0, &worldspawn_group};
-    lockable_scalar sun2{this, "sun2", 0.0, &worldspawn_group}; /* second sun */
-    lockable_color sun2_color{this, "sun2_color", 255.0, 255.0, 255.0, &worldspawn_group};
-    lockable_scalar sunlight2{this, "sunlight2", 0.0, &worldspawn_group}; /* top sky dome */
-    lockable_color sunlight2_color{
-        this, strings{"sunlight2_color", "sunlight_color2"}, 255.0, 255.0, 255.0, &worldspawn_group};
-    lockable_scalar sunlight3{this, "sunlight3", 0.0, &worldspawn_group}; /* bottom sky dome */
-    lockable_color sunlight3_color{
-        this, strings{"sunlight3_color", "sunlight_color3"}, 255.0, 255.0, 255.0, &worldspawn_group};
-    lockable_scalar sunlight_dirt{this, "sunlight_dirt", 0.0, &worldspawn_group};
-    lockable_scalar sunlight2_dirt{this, "sunlight2_dirt", 0.0, &worldspawn_group};
-    lockable_mangle sunvec{this, strings{"sunlight_mangle", "sun_mangle", "sun_angle"}, 0.0, -90.0, 0.0,
+    setting_scalar sunlight{this, {"sunlight", "sun_light"}, 0.0, &worldspawn_group}; /* main sun */
+    setting_color sunlight_color{this, {"sunlight_color", "sun_color"}, 255.0, 255.0, 255.0, &worldspawn_group};
+    setting_scalar sun2{this, "sun2", 0.0, &worldspawn_group}; /* second sun */
+    setting_color sun2_color{this, "sun2_color", 255.0, 255.0, 255.0, &worldspawn_group};
+    setting_scalar sunlight2{this, "sunlight2", 0.0, &worldspawn_group}; /* top sky dome */
+    setting_color sunlight2_color{
+        this, {"sunlight2_color", "sunlight_color2"}, 255.0, 255.0, 255.0, &worldspawn_group};
+    setting_scalar sunlight3{this, "sunlight3", 0.0, &worldspawn_group}; /* bottom sky dome */
+    setting_color sunlight3_color{
+        this, {"sunlight3_color", "sunlight_color3"}, 255.0, 255.0, 255.0, &worldspawn_group};
+    setting_scalar sunlight_dirt{this, "sunlight_dirt", 0.0, &worldspawn_group};
+    setting_scalar sunlight2_dirt{this, "sunlight2_dirt", 0.0, &worldspawn_group};
+    setting_mangle sunvec{this, {"sunlight_mangle", "sun_mangle", "sun_angle"}, 0.0, -90.0, 0.0,
         &worldspawn_group}; /* defaults to straight down */
-    lockable_mangle sun2vec{this, "sun2_mangle", 0.0, -90.0, 0.0, &worldspawn_group}; /* defaults to straight down */
-    lockable_scalar sun_deviance{this, "sunlight_penumbra", 0.0, 0.0, 180.0, &worldspawn_group};
-    lockable_vec3 sky_surface{this, strings{"sky_surface", "sun_surface"}, 0, 0, 0,
+    setting_mangle sun2vec{this, "sun2_mangle", 0.0, -90.0, 0.0, &worldspawn_group}; /* defaults to straight down */
+    setting_scalar sun_deviance{this, "sunlight_penumbra", 0.0, 0.0, 180.0, &worldspawn_group};
+    setting_vec3 sky_surface{this, {"sky_surface", "sun_surface"}, 0, 0, 0,
         &worldspawn_group} /* arghrad surface lights on sky faces */;
 };
 
-extern settings_group output_group;
-extern settings_group debug_group;
-extern settings_group postprocessing_group;
-extern settings_group experimental_group;
+extern setting_group output_group;
+extern setting_group debug_group;
+extern setting_group postprocessing_group;
+extern setting_group experimental_group;
 
 class light_settings : public common_settings, public worldspawn_keys
 {
 public:
-    // slight modification to lockable_numeric that supports
+    // slight modification to setting_numeric that supports
     // a default value if a non-number is supplied after parsing
-    class lockable_soft : public lockable_int32
+    class lockable_soft : public setting_int32
     {
     public:
-        using lockable_int32::lockable_int32;
+        using setting_int32::setting_int32;
 
         virtual bool parse(const std::string &settingName, parser_base_t &parser, bool locked = false) override
         {
@@ -361,10 +361,10 @@ public:
         virtual std::string format() const { return "[n]"; }
     };
 
-    class lockable_extra : public lockable_value<int32_t>
+    class lockable_extra : public setting_value<int32_t>
     {
     public:
-        using lockable_value::lockable_value;
+        using setting_value::setting_value;
 
         virtual bool parse(const std::string &settingName, parser_base_t &parser, bool locked = false)
         {
@@ -382,59 +382,59 @@ public:
         virtual std::string format() const override { return ""; };
     };
 
-    lockable_bool surflight_dump{this, "surflight_dump", false, &debug_group, "dump surface lights to a .map file"};
-    lockable_scalar surflight_subdivide{
+    setting_bool surflight_dump{this, "surflight_dump", false, &debug_group, "dump surface lights to a .map file"};
+    setting_scalar surflight_subdivide{
         this, "surflight_subdivide", 128.0, 64.0, 2048.0, &performance_group, "surface light subdivision size"};
-    lockable_bool onlyents{this, "onlyents", false, &output_group, "only update entities"};
-    lockable_bool write_normals{
+    setting_bool onlyents{this, "onlyents", false, &output_group, "only update entities"};
+    setting_bool write_normals{
         this, "wrnormals", false, &output_group, "output normals, tangents and bitangents in a BSPX lump"};
-    lockable_bool novanilla{
+    setting_bool novanilla{
         this, "novanilla", false, &experimental_group, "implies -bspxlit; don't write vanilla lighting"};
-    lockable_scalar gate{this, "gate", EQUAL_EPSILON, &performance_group, "cutoff lights at this brightness level"};
-    lockable_int32 sunsamples{
+    setting_scalar gate{this, "gate", EQUAL_EPSILON, &performance_group, "cutoff lights at this brightness level"};
+    setting_int32 sunsamples{
         this, "sunsamples", 64, 8, 2048, &performance_group, "set samples for _sunlight2, default 64"};
-    lockable_bool arghradcompat{
+    setting_bool arghradcompat{
         this, "arghradcompat", false, &output_group, "enable compatibility for Arghrad-specific keys"};
-    lockable_bool nolighting{this, "nolighting", false, &output_group, "don't output main world lighting (Q2RTX)"};
-    lockable_vec3 debugface{this, "debugface", std::numeric_limits<vec_t>::quiet_NaN(),
+    setting_bool nolighting{this, "nolighting", false, &output_group, "don't output main world lighting (Q2RTX)"};
+    setting_vec3 debugface{this, "debugface", std::numeric_limits<vec_t>::quiet_NaN(),
         std::numeric_limits<vec_t>::quiet_NaN(), std::numeric_limits<vec_t>::quiet_NaN(), &debug_group, ""};
-    lockable_vec3 debugvert{this, "debugvert", std::numeric_limits<vec_t>::quiet_NaN(),
+    setting_vec3 debugvert{this, "debugvert", std::numeric_limits<vec_t>::quiet_NaN(),
         std::numeric_limits<vec_t>::quiet_NaN(), std::numeric_limits<vec_t>::quiet_NaN(), &debug_group, ""};
-    lockable_bool highlightseams{this, "highlightseams", false, &debug_group, ""};
+    setting_bool highlightseams{this, "highlightseams", false, &debug_group, ""};
     lockable_soft soft{this, "soft", 0, 0, std::numeric_limits<int32_t>::max(), &postprocessing_group,
         "blurs the lightmap. specify n to blur radius in samples, otherwise auto"};
-    lockable_string radlights{this, "radlights", "", "\"filename.rad\"", &experimental_group,
+    setting_string radlights{this, "radlights", "", "\"filename.rad\"", &experimental_group,
         "loads a <surfacename> <r> <g> <b> <intensity> file"};
-    lockable_int32 lmscale{
+    setting_int32 lmscale{
         this, "lmscale", 0, &experimental_group, "change lightmap scale, vanilla engines only allow 16"};
-    lockable_extra extra{this, strings{"extra", "extra4"}, 1, &performance_group,
+    lockable_extra extra{this, {"extra", "extra4"}, 1, &performance_group,
         "supersampling; 2x2 (extra) or 4x4 (extra4) respectively"};
-    lockable_bool novisapprox{
+    setting_bool novisapprox{
         this, "novisapprox", false, &debug_group, "disable approximate visibility culling of lights"};
-    lockable_func lit{this, "lit", [&]() { write_litfile |= lightfile::external; }, &output_group, "write .lit file"};
-    lockable_func lit2{
+    setting_func lit{this, "lit", [&]() { write_litfile |= lightfile::external; }, &output_group, "write .lit file"};
+    setting_func lit2{
         this, "lit2", [&]() { write_litfile = lightfile::lit2; }, &experimental_group, "write .lit2 file"};
-    lockable_func bspxlit{this, "bspxlit", [&]() { write_litfile |= lightfile::bspx; }, &experimental_group,
+    setting_func bspxlit{this, "bspxlit", [&]() { write_litfile |= lightfile::bspx; }, &experimental_group,
         "writes rgb data into the bsp itself"};
-    lockable_func lux{
+    setting_func lux{
         this, "lux", [&]() { write_luxfile |= lightfile::external; }, &experimental_group, "write .lux file"};
-    lockable_func bspxlux{this, "bspxlux", [&]() { write_luxfile |= lightfile::bspx; }, &experimental_group,
+    setting_func bspxlux{this, "bspxlux", [&]() { write_luxfile |= lightfile::bspx; }, &experimental_group,
         "writes lux data into the bsp itself"};
-    lockable_func bspxonly{this, "bspxonly",
+    setting_func bspxonly{this, "bspxonly",
         [&]() {
             write_litfile = lightfile::bspx;
             write_luxfile = lightfile::bspx;
             novanilla.setValueLocked(true);
         },
         &experimental_group, "writes both rgb and directions data *only* into the bsp itself"};
-    lockable_func bspx{this, "bspx",
+    setting_func bspx{this, "bspx",
         [&]() {
             write_litfile = lightfile::bspx;
             write_luxfile = lightfile::bspx;
         },
         &experimental_group, "writes both rgb and directions data into the bsp itself"};
-    lockable_bool litonly{this, "litonly", false, &output_group, "only write .lit file, don't modify BSP"};
-    lockable_bool nolights{this, "nolights", false, &output_group, "ignore light entities (only sunlight/minlight)"};
+    setting_bool litonly{this, "litonly", false, &output_group, "only write .lit file, don't modify BSP"};
+    setting_bool nolights{this, "nolights", false, &output_group, "ignore light entities (only sunlight/minlight)"};
 
     inline void CheckNoDebugModeSet()
     {
@@ -443,49 +443,49 @@ public:
         }
     }
 
-    lockable_func dirtdebug{this, strings{"dirtdebug", "debugdirt"},
+    setting_func dirtdebug{this, {"dirtdebug", "debugdirt"},
         [&]() {
             CheckNoDebugModeSet();
             debugmode = debugmodes::dirt;
         },
         &debug_group, "only save the AO values to the lightmap"};
 
-    lockable_func bouncedebug{this, "bouncedebug",
+    setting_func bouncedebug{this, "bouncedebug",
         [&]() {
             CheckNoDebugModeSet();
             debugmode = debugmodes::bounce;
         },
         &debug_group, "only save bounced lighting to the lightmap"};
 
-    lockable_func bouncelightsdebug{this, "bouncelightsdebug",
+    setting_func bouncelightsdebug{this, "bouncelightsdebug",
         [&]() {
             CheckNoDebugModeSet();
             debugmode = debugmodes::bouncelights;
         },
         &debug_group, "only save bounced emitters lighting to the lightmap"};
 
-    lockable_func phongdebug{this, "phongdebug",
+    setting_func phongdebug{this, "phongdebug",
         [&]() {
             CheckNoDebugModeSet();
             debugmode = debugmodes::phong;
         },
         &debug_group, "only save phong normals to the lightmap"};
 
-    lockable_func phongdebug_obj{this, "phongdebug_obj",
+    setting_func phongdebug_obj{this, "phongdebug_obj",
         [&]() {
             CheckNoDebugModeSet();
             debugmode = debugmodes::phong_obj;
         },
         &debug_group, "save map as .obj with phonged normals"};
 
-    lockable_func debugoccluded{this, "debugoccluded",
+    setting_func debugoccluded{this, "debugoccluded",
         [&]() {
             CheckNoDebugModeSet();
             debugmode = debugmodes::debugoccluded;
         },
         &debug_group, "save light occlusion data to lightmap"};
 
-    lockable_func debugneighbours{this, "debugneighbours",
+    setting_func debugneighbours{this, "debugneighbours",
         [&]() {
             CheckNoDebugModeSet();
             debugmode = debugmodes::debugneighbours;
