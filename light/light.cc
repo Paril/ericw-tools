@@ -463,9 +463,9 @@ static void LightWorld(bspdata_t *bspdata, bool forcedscale)
 
     CalculateVertexNormals(&bsp);
 
-    const bool bouncerequired = options.bounce.value() &&
-                                (options.debugmode == debugmodes::none || options.debugmode == debugmodes::bounce ||
-                                    options.debugmode == debugmodes::bouncelights); // mxd
+    const bool bouncerequired =
+        options.bounce.value() && (options.debugmode == debugmodes::none || options.debugmode == debugmodes::bounce ||
+                                      options.debugmode == debugmodes::bouncelights); // mxd
     const bool isQuake2map = bsp.loadversion->game->id == GAME_QUAKE_II; // mxd
 
     if ((bouncerequired || isQuake2map) && !options.nolighting.value()) {
@@ -898,8 +898,9 @@ int light_main(int argc, const char **argv)
 
     // mxd. Use 1.0 rangescale as a default to better match with qrad3/arghrad
     if ((bspdata.loadversion->game->id == GAME_QUAKE_II) && !options.rangescale.isChanged()) {
-        options.rangescale = std::move(settings::setting_scalar(nullptr, options.rangescale.primaryName().c_str(), 1.0f, 0.0f,
-            100.0f)); // Gross hacks to avoid displaying this in OptionsSummary...
+        options.rangescale =
+            std::move(settings::setting_scalar(nullptr, options.rangescale.primaryName().c_str(), 1.0f, 0.0f,
+                100.0f)); // Gross hacks to avoid displaying this in OptionsSummary...
     }
 
     img::init_palette(bspdata.loadversion->game);

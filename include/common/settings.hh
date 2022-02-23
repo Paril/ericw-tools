@@ -56,8 +56,8 @@ enum class source
 class nameset : public std::vector<std::string>
 {
 public:
-    nameset(const char *str) : vector<std::string>({ str }) { }
-    nameset(const std::string &str) : vector<std::string>({ str }) { }
+    nameset(const char *str) : vector<std::string>({str}) { }
+    nameset(const std::string &str) : vector<std::string>({str}) { }
     nameset(const std::initializer_list<const char *> &strs) : vector(strs.begin(), strs.end()) { }
     nameset(const std::initializer_list<std::string> &strs) : vector(strs) { }
 };
@@ -79,7 +79,8 @@ protected:
     const setting_group *_group;
     const char *_description;
 
-    setting_base(setting_container *dictionary, const nameset &names, const setting_group *group, const char *description);
+    setting_base(
+        setting_container *dictionary, const nameset &names, const setting_group *group, const char *description);
 
     constexpr bool changeSource(source newSource)
     {
@@ -254,8 +255,8 @@ protected:
     }
 
 public:
-    inline setting_bool(setting_container *dictionary, const nameset &names, bool v, const setting_group *group = nullptr,
-        const char *description = "")
+    inline setting_bool(setting_container *dictionary, const nameset &names, bool v,
+        const setting_group *group = nullptr, const char *description = "")
         : setting_value(dictionary, names, v, group, description), _default(v)
     {
     }
@@ -371,8 +372,8 @@ public:
     }
 
     template<typename = std::enable_if_t<!std::is_enum_v<T>>>
-    inline setting_numeric(
-        setting_container *dictionary, const nameset &names, T v, const setting_group *group = nullptr, const char *description = "")
+    inline setting_numeric(setting_container *dictionary, const nameset &names, T v,
+        const setting_group *group = nullptr, const char *description = "")
         : setting_numeric(
               dictionary, names, v, std::numeric_limits<T>::lowest(), std::numeric_limits<T>::max(), group, description)
     {
@@ -477,8 +478,8 @@ private:
     std::string _format;
 
 public:
-    inline setting_string(setting_container *dictionary, const nameset &names, std::string v, const std::string_view &format = "\"str\"",
-        const setting_group *group = nullptr, const char *description = "")
+    inline setting_string(setting_container *dictionary, const nameset &names, std::string v,
+        const std::string_view &format = "\"str\"", const setting_group *group = nullptr, const char *description = "")
         : setting_value(dictionary, names, v, group, description), _format(format)
     {
     }

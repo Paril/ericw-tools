@@ -187,11 +187,14 @@ TEST(settings, doubleHyphen)
 TEST(settings, grouping)
 {
     settings::setting_container settings;
-    settings::setting_group performance { "Performance", -1000 };
-    settings::setting_group others { "Others", 1000 };
-    settings::setting_scalar scalarSetting(&settings, "threads", 0, &performance, "number of threads; zero for automatic");
-    settings::setting_bool boolSetting(&settings, "fast", false, &performance, "use faster algorithm, for quick compiles");
-    settings::setting_string stringSetting(&settings, "filename", "filename.bat", "file.bat", &others, "some batch file");
+    settings::setting_group performance{"Performance", -1000};
+    settings::setting_group others{"Others", 1000};
+    settings::setting_scalar scalarSetting(
+        &settings, "threads", 0, &performance, "number of threads; zero for automatic");
+    settings::setting_bool boolSetting(
+        &settings, "fast", false, &performance, "use faster algorithm, for quick compiles");
+    settings::setting_string stringSetting(
+        &settings, "filename", "filename.bat", "file.bat", &others, "some batch file");
     ASSERT_TRUE(settings.grouped().begin()->first == &performance);
     // settings.printHelp();
 }

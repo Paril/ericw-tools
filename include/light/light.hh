@@ -303,19 +303,17 @@ public:
     setting_scalar sun2{this, "sun2", 0.0, &worldspawn_group}; /* second sun */
     setting_color sun2_color{this, "sun2_color", 255.0, 255.0, 255.0, &worldspawn_group};
     setting_scalar sunlight2{this, "sunlight2", 0.0, &worldspawn_group}; /* top sky dome */
-    setting_color sunlight2_color{
-        this, {"sunlight2_color", "sunlight_color2"}, 255.0, 255.0, 255.0, &worldspawn_group};
+    setting_color sunlight2_color{this, {"sunlight2_color", "sunlight_color2"}, 255.0, 255.0, 255.0, &worldspawn_group};
     setting_scalar sunlight3{this, "sunlight3", 0.0, &worldspawn_group}; /* bottom sky dome */
-    setting_color sunlight3_color{
-        this, {"sunlight3_color", "sunlight_color3"}, 255.0, 255.0, 255.0, &worldspawn_group};
+    setting_color sunlight3_color{this, {"sunlight3_color", "sunlight_color3"}, 255.0, 255.0, 255.0, &worldspawn_group};
     setting_scalar sunlight_dirt{this, "sunlight_dirt", 0.0, &worldspawn_group};
     setting_scalar sunlight2_dirt{this, "sunlight2_dirt", 0.0, &worldspawn_group};
     setting_mangle sunvec{this, {"sunlight_mangle", "sun_mangle", "sun_angle"}, 0.0, -90.0, 0.0,
         &worldspawn_group}; /* defaults to straight down */
     setting_mangle sun2vec{this, "sun2_mangle", 0.0, -90.0, 0.0, &worldspawn_group}; /* defaults to straight down */
     setting_scalar sun_deviance{this, "sunlight_penumbra", 0.0, 0.0, 180.0, &worldspawn_group};
-    setting_vec3 sky_surface{this, {"sky_surface", "sun_surface"}, 0, 0, 0,
-        &worldspawn_group} /* arghrad surface lights on sky faces */;
+    setting_vec3 sky_surface{
+        this, {"sky_surface", "sun_surface"}, 0, 0, 0, &worldspawn_group} /* arghrad surface lights on sky faces */;
 };
 
 extern setting_group output_group;
@@ -407,8 +405,8 @@ public:
         "loads a <surfacename> <r> <g> <b> <intensity> file"};
     setting_int32 lmscale{
         this, "lmscale", 0, &experimental_group, "change lightmap scale, vanilla engines only allow 16"};
-    lockable_extra extra{this, {"extra", "extra4"}, 1, &performance_group,
-        "supersampling; 2x2 (extra) or 4x4 (extra4) respectively"};
+    lockable_extra extra{
+        this, {"extra", "extra4"}, 1, &performance_group, "supersampling; 2x2 (extra) or 4x4 (extra4) respectively"};
     setting_bool novisapprox{
         this, "novisapprox", false, &debug_group, "disable approximate visibility culling of lights"};
     setting_func lit{this, "lit", [&]() { write_litfile |= lightfile::external; }, &output_group, "write .lit file"};

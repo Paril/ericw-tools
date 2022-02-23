@@ -80,8 +80,8 @@ private:
     std::set<wadpath> _paths;
 
 public:
-    inline lockable_wadpathset(
-        setting_container *dictionary, const nameset &names, const setting_group *group = nullptr, const char *description = "")
+    inline lockable_wadpathset(setting_container *dictionary, const nameset &names,
+        const setting_group *group = nullptr, const char *description = "")
         : setting_base(dictionary, names, group, description)
     {
     }
@@ -191,8 +191,8 @@ public:
         this, "objexport", false, &debugging_group, "export the map file as .OBJ models during various CSG phases"};
     setting_bool wrbrushes{this, {"wrbrushes", "bspx"}, false, &common_format_group,
         "includes a list of brushes for brush-based collision"};
-    setting_redirect wrbrushesonly{this, {"wrbrushesonly", "bspxonly"}, {&wrbrushes, &noclip},
-        &common_format_group, "includes BSPX brushes and does not output clipping hulls (wrbrushes + noclip)"};
+    setting_redirect wrbrushesonly{this, {"wrbrushesonly", "bspxonly"}, {&wrbrushes, &noclip}, &common_format_group,
+        "includes BSPX brushes and does not output clipping hulls (wrbrushes + noclip)"};
     setting_bool omitdetail{
         this, "omitdetail", false, &map_development_group, "omit *all* detail brushes from the compile"};
     setting_bool omitdetailwall{
