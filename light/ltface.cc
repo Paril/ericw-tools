@@ -1943,7 +1943,7 @@ LightFace_SurfaceLight(const mbsp_t *bsp, lightsurf_t *lightsurf, lightmapdict_t
 
     for (const auto & surf_ptr : LightSurfaces()) {
 
-        if (!surf_ptr->vpl) {
+        if (!surf_ptr || !surf_ptr->vpl) {
             // didn't emit anthing
             continue;
         } else if (surf_ptr.get() == lightsurf) {
@@ -2042,7 +2042,7 @@ LightPoint_SurfaceLight(const mbsp_t *bsp, const std::vector<uint8_t> *pvs, rays
     const float surflight_gate = 0.01f;
 
     for (const auto &surf : LightSurfaces()) {
-        if (!surf->vpl) {
+        if (!surf || !surf->vpl) {
             continue;
         }
 
