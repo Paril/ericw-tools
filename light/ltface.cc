@@ -2053,10 +2053,9 @@ LightPoint_SurfaceLight(const mbsp_t *bsp, const std::vector<uint8_t> *pvs, rays
                 continue;
             }
 
-            rs.clearPushedRays();
-
             // 1 ray
             for (auto &vpl_settings : vpl.styles) {
+
                 qvec3f pos = vpl.points[c];
                 qvec3f dir = surfpoint - pos;
                 float dist = qv::length(dir);
@@ -2067,6 +2066,8 @@ LightPoint_SurfaceLight(const mbsp_t *bsp, const std::vector<uint8_t> *pvs, rays
                     dir /= dist;
 
                 qvec3f indirect{};
+
+                rs.clearPushedRays();
 
                 for (int axis = 0; axis < 3; ++axis) {
                     for (int sign = -1; sign <= +1; sign += 2) {
