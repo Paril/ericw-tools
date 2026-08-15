@@ -29,7 +29,7 @@ See file, 'COPYING', for details.
 #include <QWheelEvent>
 #include <QKeyEvent>
 #include <QTime>
-#include <fmt/core.h>
+#include <fmt/base.h>
 #include <QOpenGLFramebufferObject>
 #include <QOpenGLDebugLogger>
 #include <QStandardPaths>
@@ -2380,7 +2380,8 @@ void GLView::clickFace(QMouseEvent *event)
     if (m_showBmodels)
         ray_mask |= GEOM_MASK_BMODEL;
 
-    auto hit = m_spatialindex->trace_ray(qvec3f(ws_a[0], ws_a[1], ws_a[2]), qvec3f(ray_dir[0], ray_dir[1], ray_dir[2]), ray_mask);
+    auto hit = m_spatialindex->trace_ray(
+        qvec3f(ws_a[0], ws_a[1], ws_a[2]), qvec3f(ray_dir[0], ray_dir[1], ray_dir[2]), ray_mask);
 
     if (hit.hit) {
         m_selected_face = *std::any_cast<int>(hit.hitpayload);

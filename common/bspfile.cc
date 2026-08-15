@@ -30,7 +30,7 @@
 #include <limits.h>
 #include <system_error>
 
-#include <fmt/core.h>
+#include <fmt/base.h>
 
 #include <atomic>
 #include <mutex>
@@ -182,8 +182,6 @@ template<gameid_t ID>
 struct gamedef_q1_like_t : public gamedef_t
 {
 public:
-    bool allows_hl_contents = false;
-
     explicit gamedef_q1_like_t(const char *friendly_name = "quake", const char *base_dir = "ID1")
         : gamedef_t(friendly_name, base_dir)
     {
@@ -320,14 +318,19 @@ public:
          *
          * Normally solid leafs are not written and just referenced as leaf 0.
          */
-        if (contents.is_detail_fence() || contents.is_detail_wall()) {
-            return contentflags_t::make(EWT_VISCONTENTS_SOLID);
+        if (contents.flags & EWT_VISCONTENTS_WINDOW) {
+            // clear WINDOW and add SOLID
+            contents = contentflags_t::make((contents.flags & ~EWT_VISCONTENTS_WINDOW) | EWT_VISCONTENTS_SOLID);
+        }
+        if (contents.flags & EWT_VISCONTENTS_DETAIL_WALL) {
+            // clear DETAIL_WALL and add SOLID
+            contents = contentflags_t::make((contents.flags & ~EWT_VISCONTENTS_DETAIL_WALL) | EWT_VISCONTENTS_SOLID);
         }
 
-        if (contents.flags & EWT_VISCONTENTS_MIST) {
-            // clear mist. detail_illusionary on its own becomes CONTENTS_EMPTY,
+        if (contents.flags & (EWT_VISCONTENTS_MIST | EWT_VISCONTENTS_AUX)) {
+            // clear mist and aux. detail_illusionary on its own becomes CONTENTS_EMPTY,
             // detail_illusionary in water becomes CONTENTS_WATER, etc.
-            contents = contentflags_t::make(contents.flags & ~EWT_VISCONTENTS_MIST);
+            contents = contentflags_t::make(contents.flags & ~(EWT_VISCONTENTS_MIST | EWT_VISCONTENTS_AUX));
         }
         if (contents.flags & EWT_VISCONTENTS_ILLUSIONARY_VISBLOCKER) {
             // this exports as empty
@@ -355,7 +358,7 @@ public:
             return contentflags_t::make(EWT_VISCONTENTS_EMPTY);
         } else if (!Q_strcasecmp(texname.data(), "clip")) {
             return contentflags_t::make(EWT_INVISCONTENTS_PLAYERCLIP);
-        } else if ((texname[0] == '*') || (texname[0] == '!')) {
+        } else if ((texname[0] == '*') || (texname[0] == '!' && allows_hl_contents)) {
             // non-Q2: -transwater implies liquids are detail and translucent
             contents_int_t liquid_flags = 0;
             if (transwater) {

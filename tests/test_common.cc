@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <string_view>
 #include <common/bspfile.hh>
 #include <common/bspfile_q1.hh>
 #include <common/bspfile_q2.hh>
@@ -32,6 +33,25 @@ TEST(common, stringIStartsWith)
     // false cases
     EXPECT_FALSE(string_istarts_with("asdf", "ASt"));
     EXPECT_FALSE(string_istarts_with("asdf", "ASDFX"));
+}
+
+TEST(common, caseInsensitiveLess)
+{
+    using namespace std::string_view_literals;
+
+    std::map<std::string, int, case_insensitive_less> testmap;
+
+    testmap["abc"] = 1;
+    testmap["def"] = 2;
+    testmap["ghi"] = 3;
+
+    EXPECT_EQ(3, testmap.size());
+
+    EXPECT_EQ(1, testmap.find("ABC"sv)->second);
+    EXPECT_EQ(2, testmap.find("DEF"sv)->second);
+    EXPECT_EQ(3, testmap.find("GHI"sv)->second);
+
+    EXPECT_EQ(testmap.end(), testmap.find("A"));
 }
 
 TEST(common, q1Contents)
@@ -93,6 +113,41 @@ TEST(common, q1Contents)
         EXPECT_FALSE(combined.is_detail_solid());
         EXPECT_TRUE(combined.is_sky());
         EXPECT_TRUE(combined.is_solid());
+    }
+}
+
+TEST(common, q1ContentsParse)
+{
+    auto *game = bspver_q1.game;
+
+    struct case_t
+    {
+        const char *texname;
+        contents_int_t expected_ewt;
+        int expected_q1;
+    };
+
+    std::vector<case_t> cases{
+        {"something", EWT_VISCONTENTS_SOLID, CONTENTS_SOLID},
+        {"*something", EWT_VISCONTENTS_WATER, CONTENTS_WATER},
+        {"*slimexyz", EWT_VISCONTENTS_SLIME, CONTENTS_SLIME},
+        {"*lavaxyz", EWT_VISCONTENTS_LAVA, CONTENTS_LAVA},
+        {"skyxyz", EWT_VISCONTENTS_SKY, CONTENTS_SKY},
+        // these HL contents are not supported in q1 mode
+        {"!something", EWT_VISCONTENTS_SOLID, CONTENTS_SOLID},
+        {"!cur_0X", EWT_VISCONTENTS_SOLID, CONTENTS_SOLID},
+    };
+
+    for (const case_t &c : cases) {
+        // check face_get_contents
+        auto case_contents = game->face_get_contents(c.texname, {}, {}, false);
+        EXPECT_EQ(case_contents.flags, c.expected_ewt);
+
+        // check EWT -> Q1
+        EXPECT_EQ(c.expected_q1, game->contents_to_native(case_contents));
+
+        // check Q1 -> EWT
+        EXPECT_EQ(c.expected_ewt, game->create_contents_from_native(c.expected_q1).flags);
     }
 }
 
@@ -160,6 +215,21 @@ TEST(common, clusterContents)
             // check portal_can_see_through
             EXPECT_FALSE(contentflags_t::portal_can_see_through(empty, solid_detail));
         }
+    }
+}
+
+TEST(common, twoSided)
+{
+    EXPECT_FALSE(contentflags_t::is_two_sided(contentflags_t::make(EWT_VISCONTENTS_SOLID)));
+    EXPECT_TRUE(contentflags_t::is_two_sided(contentflags_t::make(EWT_VISCONTENTS_WATER)));
+
+    const auto di = contentflags_t::create_detail_illusionary_contents(contentflags_t::make(EWT_VISCONTENTS_SOLID));
+    EXPECT_FALSE(contentflags_t::is_two_sided(di));
+
+    {
+        auto di_mirrorinside = di;
+        di_mirrorinside.set_mirrored(true);
+        EXPECT_TRUE(contentflags_t::is_two_sided(di_mirrorinside));
     }
 }
 
@@ -357,6 +427,22 @@ TEST(common, q2Contents)
     }
 }
 
+TEST(common, q1ContentsRemap)
+{
+    auto *game_q1 = bspver_q1.game;
+    {
+        SCOPED_TRACE("all content types combined (should make a combination of all q1 types)");
+        auto all = contentflags_t::make(EWT_VISCONTENTS_SOLID | EWT_VISCONTENTS_SKY | EWT_VISCONTENTS_DETAIL_WALL |
+                                        EWT_VISCONTENTS_WINDOW | EWT_VISCONTENTS_ILLUSIONARY_VISBLOCKER |
+                                        EWT_VISCONTENTS_AUX | EWT_VISCONTENTS_LAVA | EWT_VISCONTENTS_SLIME |
+                                        EWT_VISCONTENTS_WATER | EWT_VISCONTENTS_MIST);
+
+        EXPECT_EQ(contentflags_t::make(EWT_VISCONTENTS_SOLID | EWT_VISCONTENTS_SKY | EWT_VISCONTENTS_LAVA |
+                                       EWT_VISCONTENTS_SLIME | EWT_VISCONTENTS_WATER),
+            game_q1->contents_remap_for_export(all, gamedef_t::remap_type_t::leaf));
+    }
+}
+
 TEST(common, q1ContentsRoundtrip)
 {
     auto *game_q1 = bspver_q1.game;
@@ -444,6 +530,43 @@ TEST(imglib, png)
     EXPECT_EQ(texture->height_scale, 1);
 }
 
+TEST(imglib, q1wad)
+{
+    auto *game = bspver_q1.game;
+
+    settings::common_settings settings;
+    game->init_filesystem("placeholder.map", settings);
+
+    {
+        SCOPED_TRACE("check it's not loaded initially");
+
+        auto [texture, resolve, data] = img::load_texture("orangestuff8", false, game, settings, false, true);
+        ASSERT_FALSE(texture);
+    }
+
+    auto wad_path = std::filesystem::path(testmaps_dir) / "deprecated" / "free_wad.wad";
+    ASSERT_TRUE(fs::addArchive(wad_path, false));
+
+    {
+        SCOPED_TRACE("check it's loaded now");
+
+        auto [texture, resolve, data] = img::load_texture("orangestuff8", false, game, settings, false, true);
+        ASSERT_TRUE(texture);
+
+        EXPECT_EQ(texture->meta.name, "orangestuff8");
+        EXPECT_EQ(texture->meta.width, 64);
+        EXPECT_EQ(texture->meta.height, 64);
+        EXPECT_EQ(texture->meta.extension.value(), img::ext::MIP);
+        EXPECT_FALSE(texture->meta.color_override);
+
+        EXPECT_EQ(texture->width, 64);
+        EXPECT_EQ(texture->height, 64);
+
+        EXPECT_EQ(texture->width_scale, 1);
+        EXPECT_EQ(texture->height_scale, 1);
+    }
+}
+
 TEST(qmat, transpose)
 {
     // clang-format off
@@ -526,7 +649,7 @@ TEST(string, string_copy_from_array_z)
     {
         SCOPED_TRACE("source array is all zeroes");
 
-        const std::array<char, 2> src {'\0', '\0'};
+        const std::array<char, 2> src{'\0', '\0'};
         bool ok;
 
         EXPECT_EQ(string_copy_from_array_z(src, &ok), "");
@@ -536,7 +659,7 @@ TEST(string, string_copy_from_array_z)
     {
         SCOPED_TRACE("common case");
 
-        const std::array<char, 2> src {'x', '\0'};
+        const std::array<char, 2> src{'x', '\0'};
         bool ok;
 
         EXPECT_EQ(string_copy_from_array_z(src, &ok), "x");
@@ -546,7 +669,7 @@ TEST(string, string_copy_from_array_z)
     {
         SCOPED_TRACE("warning case: source array is unterminated");
 
-        const std::array<char, 2> src {'x', 'y'};
+        const std::array<char, 2> src{'x', 'y'};
         bool ok;
 
         EXPECT_EQ(string_copy_from_array_z(src, &ok), "xy");
@@ -635,13 +758,13 @@ TEST(surfflags, jsonAllFalse)
 
 TEST(numericCast, arrayCastPadTruncate)
 {
-    std::array src{1,2,3};
+    std::array src{1, 2, 3};
 
     // extend with zeros
-    EXPECT_EQ((std::array{1,2,3,0,0}), (array_cast<std::array<int,5>>(src, "something")));
+    EXPECT_EQ((std::array{1, 2, 3, 0, 0}), (array_cast<std::array<int, 5>>(src, "something")));
 
     // truncate
-    EXPECT_EQ((std::array{1,2}), (array_cast<std::array<int,2>>(src, "something")));
+    EXPECT_EQ((std::array{1, 2}), (array_cast<std::array<int, 2>>(src, "something")));
 }
 
 TEST(numericCast, arrayCastUnsignedToSignedOverflow)
@@ -690,4 +813,21 @@ TEST(tests, logMessagesPrefix)
 
     logging::print("WARNING: something\n");
     EXPECT_THAT(get_current_test_log(), WarningMatcher);
+}
+
+TEST(entdict, getVec3f)
+{
+    entdict_t test;
+    test.set("vec3key1", "1 2 3");
+    test.set("vec3key2", "1.0 2.0 3.0");
+
+    EXPECT_EQ(qvec3f(1, 2, 3), test.get_vec3f("vec3key1"));
+    EXPECT_EQ(qvec3f(1, 2, 3), test.get_vec3f("vec3key2"));
+
+    test.set("fail1", "1");
+    test.set("fail2", "asdf");
+
+    EXPECT_EQ(qvec3f(0, 0, 0), test.get_vec3f("fail1"));
+    EXPECT_EQ(qvec3f(0, 0, 0), test.get_vec3f("fail2"));
+    EXPECT_EQ(qvec3f(0, 0, 0), test.get_vec3f("fail3"));
 }

@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include <fmt/core.h>
+#include <fmt/base.h>
 
 #include <cinttypes>
 #include <iosfwd>
@@ -90,6 +90,8 @@ struct dmiptex_t
     uint32_t width, height;
     std::array<int32_t, MIPLEVELS> offsets; /* four mip maps stored */
 
+    std::string name_as_string() const;
+
     // serialize for streams
     void stream_write(std::ostream &s) const;
     void stream_read(std::istream &s);
@@ -99,6 +101,13 @@ struct dmiptex_t
 // the contents of the miptex beyond the header. we store
 // some of the data from the miptex (name, width, height) but
 // the full, raw miptex is also stored in `data`.
+//
+// note that only `data` is written, so changing other fields
+// will not affect what stream_write() writes.
+//
+// the exception is `null_texture`, which dmiptexlump_t::stream_write()
+// does look at, and will cause it to write a placeholder instead of
+// writing `data`.
 struct miptex_t
 {
     std::string name;
@@ -114,6 +123,9 @@ struct miptex_t
     std::array<int32_t, MIPLEVELS> offsets;
 
     size_t stream_size() const;
+
+    // populates name, width, height, offsets from `data`
+    void reload_header();
 
     void stream_read(std::istream &stream, size_t len);
     void stream_write(std::ostream &stream) const;
@@ -172,7 +184,7 @@ struct fmt::formatter<plane_type_t>
     constexpr auto parse(format_parse_context &ctx) -> decltype(ctx.begin()) { return ctx.end(); }
 
     template<typename FormatContext>
-    auto format(plane_type_t t, FormatContext &ctx)
+    auto format(plane_type_t t, FormatContext &ctx) const
     {
         string_view name = "unknown";
         switch (t) {
@@ -403,7 +415,7 @@ struct bspversion_t;
 struct mbsp_t
 {
     // the BSP version that we came from, if any
-    const bspversion_t *loadversion;
+    const bspversion_t *loadversion = nullptr;
 
     // the BSP we were converted from, if any
     fs::path file;

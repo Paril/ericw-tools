@@ -1290,6 +1290,11 @@ static void LightFace_Entity(
 static void LightPoint_Entity(const mbsp_t *bsp, raystream_occlusion_t &rs, const light_t *entity,
     const qvec3f &surfpoint, lightgrid_samples_t &result)
 {
+    // check lighting channels
+    if (entity->light_channel_mask.value() != CHANNEL_MASK_DEFAULT) {
+        return;
+    }
+
     rs.clearPushedRays();
 
     qvec3f surfpointToLightDir;
@@ -1788,8 +1793,7 @@ static void LightFace_AutoMin(const mbsp_t *bsp, const mface_t *face, lightsurf_
             // apply the minlight
             for (int i = 0; i < lightsurf->samples.size(); i++) {
                 if (apply_to_all || lightsurf->samples[i].occluded) {
-                    lightmap->samples[i].color =
-                        qv::max(grid_sample.undirectional_color, lightmap->samples[i].color);
+                    lightmap->samples[i].color = qv::max(grid_sample.undirectional_color, lightmap->samples[i].color);
                 }
             }
 

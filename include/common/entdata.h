@@ -47,6 +47,8 @@ public:
     int32_t get_int(std::string_view key) const;
     // returns number of vector components read
     int32_t get_vector(std::string_view key, qvec3f &out) const;
+    // returns {0 0 0} if we couldn't parse exactly 3 components
+    qvec3f get_vec3f(std::string_view key) const;
     void set(std::string_view key, std::string_view value);
     void remove(std::string_view key);
     void rename(std::string_view from, std::string_view to);
@@ -62,8 +64,8 @@ public:
     inline keyvalues_t::iterator begin() { return keyvalues.begin(); }
     inline keyvalues_t::iterator end() { return keyvalues.end(); }
 
-    inline size_t size() { return keyvalues.size(); }
-    
+    inline size_t size() const { return keyvalues.size(); }
+
     inline keyvalues_t &get_pairs() { return keyvalues; }
     inline const keyvalues_t &get_pairs() const { return keyvalues; }
 

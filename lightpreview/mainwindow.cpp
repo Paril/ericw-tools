@@ -711,16 +711,18 @@ void MainWindow::showEvent(QShowEvent *event)
 
 void MainWindow::fileOpen()
 {
-    // open the file browser in the directory containing the currently open file, if there is one
-    QString currentDir;
-    if (!m_mapFile.isEmpty()) {
-        currentDir = QFileInfo(m_mapFile).absolutePath();
-    }
+    QSettings settings;
+    QString lastDir = settings.value("lastDir").toString();
 
-    QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"), currentDir, tr("Map (*.map);; BSP (*.bsp)"));
+    QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"), lastDir, tr("Map (*.map);; BSP (*.bsp)"));
 
-    if (!fileName.isEmpty())
+    if (!fileName.isEmpty()) {
+        // update the lastDir setting
+        QString newDir = QFileInfo(fileName).absolutePath();
+        settings.setValue("lastDir", newDir);
+
         loadFile(fileName);
+    }
 }
 
 void MainWindow::takeScreenshot()
@@ -1052,7 +1054,8 @@ void MainWindow::compileThreadExited()
 
     m_littransucency->setChecked(bspx_decoupled_lm->isChecked() && m_bspdata.bspx.entries.contains("DECOUPLED_LM"));
 
-    glView->renderBSP(m_mapFile, bsp, m_bspdata.bspx.entries, m_entities, atlas, render_settings, bspx_normals->isChecked());
+    glView->renderBSP(
+        m_mapFile, bsp, m_bspdata.bspx.entries, m_entities, atlas, render_settings, bspx_normals->isChecked());
 
     if (!m_fileWasReload && !glView->getKeepOrigin()) {
         for (auto &ent : m_entities) {
@@ -1148,5 +1151,6 @@ void MainWindow::displayCameraPositionInfo()
 
 void MainWindow::updateCameraFaceInfo()
 {
-    face_panel->updateWithBSP(&std::get<mbsp_t>(m_bspdata.bsp), m_entities, m_bspdata.bspx.entries, glView->getSelectedFace());
+    face_panel->updateWithBSP(
+        &std::get<mbsp_t>(m_bspdata.bsp), m_entities, m_bspdata.bspx.entries, glView->getSelectedFace());
 }

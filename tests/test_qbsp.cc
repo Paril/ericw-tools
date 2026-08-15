@@ -99,6 +99,12 @@ std::tuple<mbsp_t, bspxentries_t, std::optional<prtfile_t>> LoadTestmap(
     auto bsp_path = map_path;
     bsp_path.replace_extension(".bsp");
 
+    return LoadTestmap(map_path, bsp_path, extra_args);
+}
+
+std::tuple<mbsp_t, bspxentries_t, std::optional<prtfile_t>> LoadTestmap(
+    const std::filesystem::path &map_path, const std::filesystem::path &bsp_path, std::vector<std::string> extra_args)
+{
     auto wal_metadata_path = std::filesystem::path(testmaps_dir) / "q2_wal_metadata";
 
     std::vector<std::string> args{""}; // the exe path, which we're ignoring in this case
@@ -141,7 +147,7 @@ std::tuple<mbsp_t, bspxentries_t, std::optional<prtfile_t>> LoadTestmap(
 
     // copy .bsp to game's basedir/maps directory, for easy in-game testing
     if (strlen(destdir) > 0) {
-        auto dest = fs::path(destdir) / name.filename();
+        auto dest = fs::path(destdir) / map_path.filename();
         dest.replace_extension(".bsp");
         fs::copy(qbsp_options.bsp_path, dest, fs::copy_options::overwrite_existing);
         logging::print("copied from {} to {}\n", qbsp_options.bsp_path, dest);
@@ -160,8 +166,8 @@ std::tuple<mbsp_t, bspxentries_t, std::optional<prtfile_t>> LoadTestmap(
     CheckBsp(&std::get<mbsp_t>(bspdata.bsp));
 
     // write to .json for inspection
-    serialize_bsp(
-        bspdata, std::get<mbsp_t>(bspdata.bsp), fs::path(qbsp_options.bsp_path).replace_extension(".bsp.json"));
+    serialize_bsp(std::get<mbsp_t>(bspdata.bsp), bspdata.bspx.entries,
+        fs::path(qbsp_options.bsp_path).replace_extension(".bsp.json"));
 
     std::optional<prtfile_t> prtfile;
     if (const auto prtpath = fs::path(bsp_path).replace_extension(".prt"); fs::exists(prtpath)) {
@@ -587,34 +593,37 @@ TEST(testmapsQ1, chopNoChange)
     // TODO: ideally we should check we get back the same brush pointers from ChopBrushes
 }
 
-TEST(testmapsQ1, simpleSealed)
+class testmapsQ1SimpleSealed : public testing::TestWithParam<std::string>
 {
-    const std::vector<std::string> quake_maps{"qbsp_simple_sealed.map", "qbsp_simple_sealed_rotated.map"};
+};
 
-    for (const auto &mapname : quake_maps) {
-        SCOPED_TRACE(fmt::format("testing {}", mapname));
+INSTANTIATE_TEST_SUITE_P(
+    , testmapsQ1SimpleSealed, testing::Values("qbsp_simple_sealed.map", "qbsp_simple_sealed_rotated.map"));
 
-        const auto [bsp, bspx, prt] = LoadTestmapQ1(mapname);
+TEST_P(testmapsQ1SimpleSealed, test)
+{
+    const std::string &mapname = GetParam();
 
-        ASSERT_EQ(bsp.dleafs.size(), 2);
+    const auto [bsp, bspx, prt] = LoadTestmapQ1(mapname);
 
-        ASSERT_EQ(bsp.dleafs[0].contents, CONTENTS_SOLID);
-        ASSERT_EQ(bsp.dleafs[1].contents, CONTENTS_EMPTY);
+    ASSERT_EQ(bsp.dleafs.size(), 2);
 
-        // just a hollow box
-        ASSERT_EQ(bsp.dfaces.size(), 6);
+    ASSERT_EQ(bsp.dleafs[0].contents, CONTENTS_SOLID);
+    ASSERT_EQ(bsp.dleafs[1].contents, CONTENTS_EMPTY);
 
-        // no bspx lumps
-        EXPECT_TRUE(bspx.empty());
+    // just a hollow box
+    ASSERT_EQ(bsp.dfaces.size(), 6);
 
-        // check markfaces
-        EXPECT_EQ(bsp.dleafs[0].nummarksurfaces, 0);
-        EXPECT_EQ(bsp.dleafs[0].firstmarksurface, 0);
+    // no bspx lumps
+    EXPECT_TRUE(bspx.empty());
 
-        EXPECT_EQ(bsp.dleafs[1].nummarksurfaces, 6);
-        EXPECT_EQ(bsp.dleafs[1].firstmarksurface, 0);
-        EXPECT_THAT(bsp.dleaffaces, testing::UnorderedElementsAre(0, 1, 2, 3, 4, 5));
-    }
+    // check markfaces
+    EXPECT_EQ(bsp.dleafs[0].nummarksurfaces, 0);
+    EXPECT_EQ(bsp.dleafs[0].firstmarksurface, 0);
+
+    EXPECT_EQ(bsp.dleafs[1].nummarksurfaces, 6);
+    EXPECT_EQ(bsp.dleafs[1].firstmarksurface, 0);
+    EXPECT_THAT(bsp.dleaffaces, testing::UnorderedElementsAre(0, 1, 2, 3, 4, 5));
 }
 
 TEST(testmapsQ1, simpleSealed2)
@@ -697,6 +706,15 @@ TEST(testmapsQ1, q1FuncIllusionaryVisblockerInteractions)
 
         EXPECT_THAT(BSP_FindFacesAtPoint(&bsp, &bsp.dmodels[0], {424, 16, 104}).size(),
             testing::AllOf(testing::Ge(1), testing::Le(2)));
+    }
+
+    {
+        SCOPED_TRACE("func_illusionary_visblocker with a func_detail_fence block inside");
+        SCOPED_TRACE("the fence should compile out as CONTENTS_SOLID");
+
+        auto *fence_leaf = BSP_FindLeafAtPoint(&bsp, &bsp.dmodels[0], {552, -8, 24});
+
+        EXPECT_EQ(fence_leaf->contents, CONTENTS_SOLID);
     }
 }
 
@@ -832,50 +850,62 @@ TEST(testmapsQ1, simpleWorldspawnSky)
     EXPECT_EQ(12, bsp.dclipnodes.size());
 }
 
-TEST(testmapsQ1, waterDetailIllusionary)
+TEST(testmapsQ1, bsp2)
 {
-    static const std::string basic_mapname = "qbsp_water_detail_illusionary.map";
-    static const std::string mirrorinside_mapname = "qbsp_water_detail_illusionary_mirrorinside.map";
+    const auto [bsp, bspx, prt] = LoadTestmapQ1("qbsp_simple_worldspawn_sky.map", {"-bsp2"});
+    EXPECT_EQ(&bspver_bsp2, bsp.loadversion);
+}
 
-    for (const auto &mapname : {basic_mapname, mirrorinside_mapname}) {
-        SCOPED_TRACE(fmt::format("testing {}", mapname));
+TEST(testmapsQ1, bsp2rmq)
+{
+    const auto [bsp, bspx, prt] = LoadTestmapQ1("qbsp_simple_worldspawn_sky.map", {"-2psb"});
+    EXPECT_EQ(&bspver_bsp2rmq, bsp.loadversion);
+}
 
-        const auto [bsp, bspx, prt] = LoadTestmapQ1(mapname);
+class testmapsQ1WaterDetailIllusionary : public testing::TestWithParam<std::string>
+{
+};
 
-        ASSERT_TRUE(prt.has_value());
+INSTANTIATE_TEST_SUITE_P(, testmapsQ1WaterDetailIllusionary,
+    testing::Values("qbsp_water_detail_illusionary.map", "qbsp_water_detail_illusionary_mirrorinside.map"));
 
-        const qvec3d inside_water_and_fence{-20, -52, 124};
-        const qvec3d inside_fence{-20, -52, 172};
+TEST_P(testmapsQ1WaterDetailIllusionary, test)
+{
+    const auto [bsp, bspx, prt] = LoadTestmapQ1(GetParam());
 
-        EXPECT_EQ(BSP_FindLeafAtPoint(&bsp, &bsp.dmodels[0], inside_water_and_fence)->contents, CONTENTS_WATER);
-        EXPECT_EQ(BSP_FindLeafAtPoint(&bsp, &bsp.dmodels[0], inside_fence)->contents, CONTENTS_EMPTY);
+    ASSERT_TRUE(prt.has_value());
 
-        const qvec3d underwater_face_pos{-40, -52, 124};
-        const qvec3d above_face_pos{-40, -52, 172};
+    const qvec3d inside_water_and_fence{-20, -52, 124};
+    const qvec3d inside_fence{-20, -52, 172};
 
-        // make sure the detail_illusionary face underwater isn't clipped away
-        auto *underwater_face = BSP_FindFaceAtPoint(&bsp, &bsp.dmodels[0], underwater_face_pos, {-1, 0, 0});
-        auto *underwater_face_inner = BSP_FindFaceAtPoint(&bsp, &bsp.dmodels[0], underwater_face_pos, {1, 0, 0});
+    EXPECT_EQ(BSP_FindLeafAtPoint(&bsp, &bsp.dmodels[0], inside_water_and_fence)->contents, CONTENTS_WATER);
+    EXPECT_EQ(BSP_FindLeafAtPoint(&bsp, &bsp.dmodels[0], inside_fence)->contents, CONTENTS_EMPTY);
 
-        auto *above_face = BSP_FindFaceAtPoint(&bsp, &bsp.dmodels[0], above_face_pos, {-1, 0, 0});
-        auto *above_face_inner = BSP_FindFaceAtPoint(&bsp, &bsp.dmodels[0], above_face_pos, {1, 0, 0});
+    const qvec3d underwater_face_pos{-40, -52, 124};
+    const qvec3d above_face_pos{-40, -52, 172};
 
-        ASSERT_NE(nullptr, underwater_face);
-        ASSERT_NE(nullptr, above_face);
+    // make sure the detail_illusionary face underwater isn't clipped away
+    auto *underwater_face = BSP_FindFaceAtPoint(&bsp, &bsp.dmodels[0], underwater_face_pos, {-1, 0, 0});
+    auto *underwater_face_inner = BSP_FindFaceAtPoint(&bsp, &bsp.dmodels[0], underwater_face_pos, {1, 0, 0});
 
-        EXPECT_EQ(std::string("{trigger"), Face_TextureName(&bsp, underwater_face));
-        EXPECT_EQ(std::string("{trigger"), Face_TextureName(&bsp, above_face));
+    auto *above_face = BSP_FindFaceAtPoint(&bsp, &bsp.dmodels[0], above_face_pos, {-1, 0, 0});
+    auto *above_face_inner = BSP_FindFaceAtPoint(&bsp, &bsp.dmodels[0], above_face_pos, {1, 0, 0});
 
-        if (mapname == mirrorinside_mapname) {
-            ASSERT_NE(underwater_face_inner, nullptr);
-            ASSERT_NE(above_face_inner, nullptr);
+    ASSERT_NE(nullptr, underwater_face);
+    ASSERT_NE(nullptr, above_face);
 
-            EXPECT_EQ(std::string("{trigger"), Face_TextureName(&bsp, underwater_face_inner));
-            EXPECT_EQ(std::string("{trigger"), Face_TextureName(&bsp, above_face_inner));
-        } else {
-            EXPECT_EQ(underwater_face_inner, nullptr);
-            EXPECT_EQ(above_face_inner, nullptr);
-        }
+    EXPECT_EQ(std::string("{trigger"), Face_TextureName(&bsp, underwater_face));
+    EXPECT_EQ(std::string("{trigger"), Face_TextureName(&bsp, above_face));
+
+    if (GetParam() == "qbsp_water_detail_illusionary_mirrorinside.map") {
+        ASSERT_NE(underwater_face_inner, nullptr);
+        ASSERT_NE(above_face_inner, nullptr);
+
+        EXPECT_EQ(std::string("{trigger"), Face_TextureName(&bsp, underwater_face_inner));
+        EXPECT_EQ(std::string("{trigger"), Face_TextureName(&bsp, above_face_inner));
+    } else {
+        EXPECT_EQ(underwater_face_inner, nullptr);
+        EXPECT_EQ(above_face_inner, nullptr);
     }
 }
 
@@ -945,39 +975,42 @@ TEST(testmapsQ1, noclipfaces)
     EXPECT_EQ(prt->portalleafs, 1);
 }
 
+class testmapsQ1NoclipfacesJunction : public testing::TestWithParam<std::string>
+{
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    , testmapsQ1NoclipfacesJunction, testing::Values("qbsp_noclipfaces_junction.map", "q2_noclipfaces_junction.map"));
+
 /**
  * _noclipfaces 1 detail_fence meeting a _noclipfaces 0 one.
  *
  * Currently, to simplify the implementation, we're treating that the same as if both had _noclipfaces 1
  */
-TEST(testmapsQ1, noclipfacesJunction)
+TEST_P(testmapsQ1NoclipfacesJunction, noclipfacesJunction)
 {
-    const std::vector<std::string> maps{"qbsp_noclipfaces_junction.map", "q2_noclipfaces_junction.map"};
+    const std::string &map = GetParam();
 
-    for (const auto &map : maps) {
-        const bool q2 = (map.find("q2") == 0);
+    const bool q2 = (map.find("q2") == 0);
 
-        SCOPED_TRACE(map);
+    const auto [bsp, bspx, prt] = q2 ? LoadTestmapQ2(map) : LoadTestmapQ1(map);
 
-        const auto [bsp, bspx, prt] = q2 ? LoadTestmapQ2(map) : LoadTestmapQ1(map);
+    EXPECT_EQ(bsp.dfaces.size(), 12);
 
-        EXPECT_EQ(bsp.dfaces.size(), 12);
+    const qvec3d portal_pos{96, 56, 32};
 
-        const qvec3d portal_pos{96, 56, 32};
+    auto *pos_x = BSP_FindFaceAtPoint(&bsp, &bsp.dmodels[0], portal_pos, {1, 0, 0});
+    auto *neg_x = BSP_FindFaceAtPoint(&bsp, &bsp.dmodels[0], portal_pos, {-1, 0, 0});
 
-        auto *pos_x = BSP_FindFaceAtPoint(&bsp, &bsp.dmodels[0], portal_pos, {1, 0, 0});
-        auto *neg_x = BSP_FindFaceAtPoint(&bsp, &bsp.dmodels[0], portal_pos, {-1, 0, 0});
+    ASSERT_NE(pos_x, nullptr);
+    ASSERT_NE(neg_x, nullptr);
 
-        ASSERT_NE(pos_x, nullptr);
-        ASSERT_NE(neg_x, nullptr);
-
-        if (q2) {
-            EXPECT_EQ(std::string("e1u1/wndow1_2"), Face_TextureName(&bsp, pos_x));
-            EXPECT_EQ(std::string("e1u1/window1"), Face_TextureName(&bsp, neg_x));
-        } else {
-            EXPECT_EQ(std::string("{trigger"), Face_TextureName(&bsp, pos_x));
-            EXPECT_EQ(std::string("blood1"), Face_TextureName(&bsp, neg_x));
-        }
+    if (q2) {
+        EXPECT_EQ(std::string("e1u1/wndow1_2"), Face_TextureName(&bsp, pos_x));
+        EXPECT_EQ(std::string("e1u1/window1"), Face_TextureName(&bsp, neg_x));
+    } else {
+        EXPECT_EQ(std::string("{trigger"), Face_TextureName(&bsp, pos_x));
+        EXPECT_EQ(std::string("blood1"), Face_TextureName(&bsp, neg_x));
     }
 }
 
@@ -1260,40 +1293,37 @@ TEST(testmapsQ1, brushClippingOrder)
     ASSERT_EQ(std::string("sbutt2"), Face_TextureName(&bsp, func_wall_button_face));
 }
 
+class testmapsQ1Origin : public testing::TestWithParam<std::string>
+{
+};
+
+INSTANTIATE_TEST_SUITE_P(, testmapsQ1Origin, testing::Values("qbsp_origin.map", "qbsp_hiprotate.map"));
+
 /**
  * Box room with a rotating fan (just a cube). Works in a mod with hiprotate - AD, Quoth, etc.
  */
-TEST(testmapsQ1, origin)
+TEST_P(testmapsQ1Origin, origin)
 {
-    const std::vector<std::string> maps{
-        "qbsp_origin.map",
-        "qbsp_hiprotate.map" // same, but uses info_rotate instead of an origin brush
-    };
+    const auto [bsp, bspx, prt] = LoadTestmapQ1(GetParam());
 
-    for (const auto &map : maps) {
-        SCOPED_TRACE(map);
+    ASSERT_TRUE(prt.has_value());
 
-        const auto [bsp, bspx, prt] = LoadTestmapQ1(map);
+    // 0 = world, 1 = rotate_object
+    ASSERT_EQ(2, bsp.dmodels.size());
 
-        ASSERT_TRUE(prt.has_value());
+    // check that the origin brush didn't clip away any solid faces, or generate faces
+    ASSERT_EQ(6, bsp.dmodels[1].numfaces);
 
-        // 0 = world, 1 = rotate_object
-        ASSERT_EQ(2, bsp.dmodels.size());
+    // FIXME: should the origin brush update the dmodel's origin too?
+    ASSERT_EQ(qvec3f(0, 0, 0), bsp.dmodels[1].origin);
 
-        // check that the origin brush didn't clip away any solid faces, or generate faces
-        ASSERT_EQ(6, bsp.dmodels[1].numfaces);
+    // check that the origin brush updated the entity lump
+    auto ents = EntData_Parse(bsp);
+    auto it = std::find_if(ents.begin(), ents.end(),
+        [](const entdict_t &dict) -> bool { return dict.get("classname") == "rotate_object"; });
 
-        // FIXME: should the origin brush update the dmodel's origin too?
-        ASSERT_EQ(qvec3f(0, 0, 0), bsp.dmodels[1].origin);
-
-        // check that the origin brush updated the entity lump
-        auto ents = EntData_Parse(bsp);
-        auto it = std::find_if(ents.begin(), ents.end(),
-            [](const entdict_t &dict) -> bool { return dict.get("classname") == "rotate_object"; });
-
-        ASSERT_NE(it, ents.end());
-        EXPECT_EQ(it->get("origin"), "216 -216 340");
-    }
+    ASSERT_NE(it, ents.end());
+    EXPECT_EQ(it->get("origin"), "216 -216 340");
 }
 
 TEST(testmapsQ1, simple)
@@ -1375,17 +1405,17 @@ TEST(testmapsQ1, cubes)
     EXPECT_EQ(bsp.dedges.size(), 26);
 }
 
-class ClipFuncWallTest : public testing::TestWithParam<std::string>
+class testmapsQ1ClipFuncWallTest : public testing::TestWithParam<std::string>
 {
 };
 
 INSTANTIATE_TEST_SUITE_P(
-    ClipFuncWallCases, ClipFuncWallTest, testing::Values("q1_clip_func_wall.map", "q1_clip_and_solid_func_wall.map"));
+    , testmapsQ1ClipFuncWallTest, testing::Values("q1_clip_func_wall.map", "q1_clip_and_solid_func_wall.map"));
 
 /**
  * Ensure submodels that are all "clip" get bounds set correctly
  */
-TEST_P(ClipFuncWallTest, testBounds)
+TEST_P(testmapsQ1ClipFuncWallTest, testBounds)
 {
     const auto [bsp, bspx, prt] = LoadTestmapQ1(GetParam());
 
@@ -2217,11 +2247,8 @@ TEST(qbsp, BrushFromBounds)
     EXPECT_EQ(found, 2);
 }
 
-// FIXME: failing because water tjuncs with walls
 TEST(qbspQ1, waterSubdivisionWithLitWaterOff)
 {
-    GTEST_SKIP();
-
     SCOPED_TRACE("-litwater 0 should suppress water subdivision");
 
     const auto [bsp, bspx, prt] = LoadTestmapQ1("q1_water_subdivision.map", {"-litwater", "0"});
@@ -2245,6 +2272,19 @@ TEST(qbspQ1, waterSubdivisionWithDefaults)
     for (auto *face : faces) {
         auto *texinfo = BSP_GetTexinfo(&bsp, face->texinfo);
         EXPECT_EQ(texinfo->flags.native_q1, 0);
+    }
+}
+
+TEST(qbspQ1, waterSubdivisionWithNosubdivide)
+{
+    const auto [bsp, bspx, prt] = LoadTestmapQ1("q1_water_subdivision.map", {"-nosubdivide"});
+
+    auto faces = FacesWithTextureName(bsp, "*swater5");
+    EXPECT_EQ(faces.size(), 2); // top and bottom
+
+    for (auto *face : faces) {
+        auto *texinfo = BSP_GetTexinfo(&bsp, face->texinfo);
+        EXPECT_EQ(texinfo->flags.native_q1, 0); // i.e., lightmapped (not TEX_SPECIAL)
     }
 }
 
@@ -2849,9 +2889,20 @@ TEST(qbspQ1, tjuncMatrix)
 
 TEST(testmapsQ1, liquidIsDetail)
 {
+    // this is the portal between the underwater corridor and the main room
     const auto portal_underwater =
         prtfile_winding_t{{-168, -384, 32}, {-168, -320, 32}, {-168, -320, -32}, {-168, -384, -32}};
+    EXPECT_EQ(qvec3d(1, 0, 0), portal_underwater.plane().normal); // normal is facing into the room
+
+    // portal betweenn the upper corridor and the main room
     const auto portal_above = portal_underwater.translate({0, 320, 128});
+    EXPECT_EQ(qvec3d(1, 0, 0), portal_above.plane().normal); // normal is facing into the room
+
+    const qvec3d above_water_pos{40, -232, 104};
+    const qvec3d below_water_pos{40, -232, -24};
+    const qvec3d lower_corridor_pos{-216, -360, 8};
+    const qvec3d upper_corridor_pos{-232, -40, 136};
+    const qvec3d solid_pos{1024, 1024, 1024};
 
     {
         SCOPED_TRACE("transparent water");
@@ -2860,41 +2911,217 @@ TEST(testmapsQ1, liquidIsDetail)
         // this implies water is detail
 
         const auto [bsp, bspx, prt] = LoadTestmapQ1("q1_liquid_is_detail.map");
-
         ASSERT_TRUE(prt.has_value());
-        ASSERT_EQ(2, prt->portals.size());
 
-        EXPECT_TRUE(((PortalMatcher(prt->portals[0].winding, portal_underwater) &&
-                         PortalMatcher(prt->portals[1].winding, portal_above)) ||
-                     (PortalMatcher(prt->portals[0].winding, portal_above) &&
-                         PortalMatcher(prt->portals[1].winding, portal_underwater))));
+        // look up some leafs
+        const mleaf_t *solid = BSP_FindLeafAtPoint(&bsp, &bsp.dmodels[0], solid_pos);
+        const mleaf_t *above_water = BSP_FindLeafAtPoint(&bsp, &bsp.dmodels[0], above_water_pos);
+        const mleaf_t *below_water = BSP_FindLeafAtPoint(&bsp, &bsp.dmodels[0], below_water_pos);
+        const mleaf_t *lower_corridor = BSP_FindLeafAtPoint(&bsp, &bsp.dmodels[0], lower_corridor_pos);
+        const mleaf_t *upper_corridor = BSP_FindLeafAtPoint(&bsp, &bsp.dmodels[0], upper_corridor_pos);
+
+        // check solid leaf
+        ASSERT_EQ(solid->visofs, 0); // this is meant to be ignored
+        ASSERT_EQ(solid->contents, CONTENTS_SOLID);
+
+        // check leafs count
+        ASSERT_EQ(bsp.dleafs.size(), 5);
+
+        // look up cluster nums from dleafinfos array
+        ASSERT_EQ(prt->dleafinfos.size(), 5);
+        int cluster_solid = prt->dleafinfos.at(BSP_GetLeafNum(&bsp, solid)).cluster;
+        int cluster_above_water = prt->dleafinfos.at(BSP_GetLeafNum(&bsp, above_water)).cluster;
+        int cluster_below_water = prt->dleafinfos.at(BSP_GetLeafNum(&bsp, below_water)).cluster;
+        int cluster_lower_corridor = prt->dleafinfos.at(BSP_GetLeafNum(&bsp, lower_corridor)).cluster;
+        int cluster_upper_corridor = prt->dleafinfos.at(BSP_GetLeafNum(&bsp, upper_corridor)).cluster;
+
+        // check cluster values
+        EXPECT_EQ(cluster_solid, 0); // this is meant to be ignored
+
+        std::set<int> cluster_set{
+            cluster_above_water, cluster_below_water, cluster_lower_corridor, cluster_upper_corridor};
+        ASSERT_EQ(cluster_set, (std::set<int>{0, 1, 2}));
+        ASSERT_EQ(cluster_above_water, cluster_below_water); // importantly, this shows the water is detail
 
         // only 3 clusters: room with water, side corridors
         EXPECT_EQ(prt->portalleafs, 3);
+        EXPECT_EQ(prt->portalleafs_real, 4); // above water, in water, plus 2 side rooms.
 
-        // above water, in water, plus 2 side rooms.
-        // note
-        EXPECT_EQ(prt->portalleafs_real, 4);
+        // check portal front / back clusters
+        ASSERT_EQ(2, prt->portals.size());
+        auto underwater_it = std::ranges::find_if(prt->portals, [&](const prtfile_portal_t &portal) -> bool {
+            return portal.winding.directional_equal(portal_underwater);
+        });
+        auto above_it = std::ranges::find_if(prt->portals,
+            [&](const prtfile_portal_t &portal) -> bool { return portal.winding.directional_equal(portal_above); });
+
+        ASSERT_NE(underwater_it, prt->portals.end());
+        ASSERT_NE(above_it, prt->portals.end());
+
+        EXPECT_EQ(underwater_it->leafnums, (twosided<int>{cluster_below_water, cluster_lower_corridor}));
+        EXPECT_EQ(above_it->leafnums, (twosided<int>{cluster_above_water, cluster_upper_corridor}));
     }
 
     {
         SCOPED_TRACE("opaque water");
 
         const auto [bsp, bspx, prt] = LoadTestmapQ1("q1_liquid_is_detail.map", {"-notranswater"});
-
         ASSERT_TRUE(prt.has_value());
-        ASSERT_EQ(2, prt->portals.size());
 
-        // same portals as transparent water case
-        // (since the water is opqaue, it doesn't get a portal)
-        EXPECT_TRUE(((PortalMatcher(prt->portals[0].winding, portal_underwater) &&
-                         PortalMatcher(prt->portals[1].winding, portal_above)) ||
-                     (PortalMatcher(prt->portals[0].winding, portal_above) &&
-                         PortalMatcher(prt->portals[1].winding, portal_underwater))));
+        // look up some leafs
+        const mleaf_t *solid = BSP_FindLeafAtPoint(&bsp, &bsp.dmodels[0], solid_pos);
+        const mleaf_t *above_water = BSP_FindLeafAtPoint(&bsp, &bsp.dmodels[0], above_water_pos);
+        const mleaf_t *below_water = BSP_FindLeafAtPoint(&bsp, &bsp.dmodels[0], below_water_pos);
+        const mleaf_t *lower_corridor = BSP_FindLeafAtPoint(&bsp, &bsp.dmodels[0], lower_corridor_pos);
+        const mleaf_t *upper_corridor = BSP_FindLeafAtPoint(&bsp, &bsp.dmodels[0], upper_corridor_pos);
+
+        // check solid leaf
+        ASSERT_EQ(solid->visofs, 0); // this is meant to be ignored
+        ASSERT_EQ(solid->contents, CONTENTS_SOLID);
+
+        // check leafs count
+        ASSERT_EQ(bsp.dleafs.size(), 5);
+
+        // look up cluster nums from dleafinfos array
+        ASSERT_EQ(prt->dleafinfos.size(), 5);
+        int cluster_solid = prt->dleafinfos.at(BSP_GetLeafNum(&bsp, solid)).cluster;
+        int cluster_above_water = prt->dleafinfos.at(BSP_GetLeafNum(&bsp, above_water)).cluster;
+        int cluster_below_water = prt->dleafinfos.at(BSP_GetLeafNum(&bsp, below_water)).cluster;
+        int cluster_lower_corridor = prt->dleafinfos.at(BSP_GetLeafNum(&bsp, lower_corridor)).cluster;
+        int cluster_upper_corridor = prt->dleafinfos.at(BSP_GetLeafNum(&bsp, upper_corridor)).cluster;
+
+        // check cluster values
+        EXPECT_EQ(cluster_solid, 0); // this is meant to be ignored
+        std::set<int> cluster_set{
+            cluster_above_water, cluster_below_water, cluster_lower_corridor, cluster_upper_corridor};
+        ASSERT_EQ(cluster_set, (std::set<int>{0, 1, 2, 3})); // shows all 4 clusters are distinct
 
         // 4 clusters this time:
         // above water, in water, plus 2 side rooms.
         EXPECT_EQ(prt->portalleafs, 4);
         EXPECT_EQ(prt->portalleafs_real, 4);
+
+        // same portals as transparent water case
+        // (since the water is opqaue, it doesn't get a portal)
+        ASSERT_EQ(2, prt->portals.size());
+        auto underwater_it = std::ranges::find_if(prt->portals, [&](const prtfile_portal_t &portal) -> bool {
+            return portal.winding.directional_equal(portal_underwater);
+        });
+        auto above_it = std::ranges::find_if(prt->portals,
+            [&](const prtfile_portal_t &portal) -> bool { return portal.winding.directional_equal(portal_above); });
+
+        ASSERT_NE(underwater_it, prt->portals.end());
+        ASSERT_NE(above_it, prt->portals.end());
+
+        EXPECT_EQ(underwater_it->leafnums, (twosided<int>{cluster_below_water, cluster_lower_corridor}));
+        EXPECT_EQ(above_it->leafnums, (twosided<int>{cluster_above_water, cluster_upper_corridor}));
     }
+}
+
+TEST(testmapsQ1, faceCrossingInteriorFill)
+{
+    const qvec3d in_pocket{-20, -20, 3};
+    const qvec3d in_void{1024, 1024, 1024};
+
+    const qvec3d face_above_pocket{-16, -20, 12};
+    const qvec3d face_in_pocket{-16, -20, 4};
+
+    {
+        const auto [bsp, bspx, prt] = LoadTestmapQ1("deprecated/missing_face_simple.map");
+
+        {
+            SCOPED_TRACE("the pocket gets filled to solid by default");
+            EXPECT_EQ(CONTENTS_SOLID, BSP_FindContentsAtPoint(&bsp, 0, &bsp.dmodels[0], in_void));
+            EXPECT_EQ(CONTENTS_SOLID, BSP_FindContentsAtPoint(&bsp, 0, &bsp.dmodels[0], in_pocket));
+        }
+        {
+            SCOPED_TRACE("the faces in the pocket get deleted");
+            EXPECT_FALSE(BSP_FindFaceAtPoint(&bsp, &bsp.dmodels[0], face_in_pocket));
+            EXPECT_TRUE(BSP_FindFaceAtPoint(&bsp, &bsp.dmodels[0], face_above_pocket));
+        }
+    }
+
+    {
+        const auto [bsp, bspx, prt] = LoadTestmapQ1("deprecated/missing_face_simple.map", {"-nofill"});
+
+        {
+            SCOPED_TRACE("with -nofill, the pocket stays CONTENTS_EMPTY");
+            EXPECT_EQ(CONTENTS_EMPTY, BSP_FindContentsAtPoint(&bsp, 0, &bsp.dmodels[0], in_pocket));
+            EXPECT_EQ(CONTENTS_EMPTY, BSP_FindContentsAtPoint(&bsp, 0, &bsp.dmodels[0], in_void));
+        }
+        {
+            SCOPED_TRACE("the faces in the pocket get kept");
+            EXPECT_TRUE(BSP_FindFaceAtPoint(&bsp, &bsp.dmodels[0], face_in_pocket));
+            EXPECT_TRUE(BSP_FindFaceAtPoint(&bsp, &bsp.dmodels[0], face_above_pocket));
+        }
+    }
+}
+
+TEST(testmapsQ1, onlyents)
+{
+    // copy the reference .bsp from the "testmaps/compiled" subdir into "testmaps" where it's gitignored
+    auto orig_bsp_path = std::filesystem::path(testmaps_dir) / "compiled" / "q1_detail_fence2.bsp";
+    auto copy_bsp_path = std::filesystem::path(testmaps_dir) / "q1_detail_fence2.bsp";
+    ASSERT_TRUE(std::filesystem::copy_file(orig_bsp_path, copy_bsp_path, std::filesystem::copy_options::overwrite_existing));
+
+    // do an onlyents compile of testmaps/q1_detail_fence2.bsp, patching it with modified entdata from
+    // q1_detail_fence2_onlyents.map
+    const auto [bsp, bspx, prt] = LoadTestmap(
+        std::filesystem::path(testmaps_dir) / "q1_detail_fence2_onlyents.map",
+        copy_bsp_path,
+        {"-onlyents"});
+
+    // difference from q1_detail_fence2_onlyents.map:
+    // - "_tb_def" is removed
+    // - brushes are removed
+    // - func_detail_illusionary/func_detail_fence are removed
+    //
+    // differences from compiled/q1_detail_fence2.bsp:
+    // - worldspawn message
+    // - info_player_start position
+    EXPECT_EQ(bsp.dentdata, R"({
+"mapversion" "220"
+"classname" "worldspawn"
+"wad" "deprecated/free_wad.wad;deprecated/fence.wad;deprecated/origin.wad;deprecated/hintskip.wad"
+"_wateralpha" "0.5"
+"message" "Edited message"
+}
+{
+"classname" "info_player_start"
+"origin" "64 -112 98"
+}
+)");
+}
+
+TEST(testmapsQ1, dentdata)
+{
+    const auto [bsp, bspx, prt] = LoadTestmap("q1_detail_fence2.map");
+
+    // basic test of how the .map gets converted into bsp.dentdata
+    // - comments are removed
+    // - "_tb_def" is removed
+    // - brushes are removed
+    // - func_detail_illusionary/func_detail_fence are removed
+
+    EXPECT_EQ(bsp.dentdata, R"({
+"mapversion" "220"
+"classname" "worldspawn"
+"wad" "deprecated/free_wad.wad;deprecated/fence.wad;deprecated/origin.wad;deprecated/hintskip.wad"
+"_wateralpha" "0.5"
+}
+{
+"classname" "info_player_start"
+"origin" "64 -112 88"
+}
+)");
+}
+
+TEST(testmapsQ1, leaktest)
+{
+    auto l = []() {
+        const auto [bsp, bspx, prt] = LoadTestmapQ1("q1_cube.map", {"-leaktest"});
+    };
+
+    EXPECT_THAT(
+            l, testing::ThrowsMessage<std::exception>(testing::HasSubstr("Aborting because -leaktest was used.")));
 }

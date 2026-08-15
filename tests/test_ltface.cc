@@ -97,8 +97,8 @@ static testresults_t QbspVisLight_Common(const std::filesystem::path &name, std:
         ConvertBSPFormat(&bspdata, &bspver_generic);
 
         // write to .json for inspection
-        serialize_bsp(
-            bspdata, std::get<mbsp_t>(bspdata.bsp), fs::path(qbsp_options.bsp_path).replace_extension(".bsp.json"));
+        serialize_bsp(std::get<mbsp_t>(bspdata.bsp), bspdata.bspx.entries,
+            fs::path(qbsp_options.bsp_path).replace_extension(".bsp.json"));
 
         return {std::move(std::get<mbsp_t>(bspdata.bsp)), std::move(bspdata.bspx.entries)};
     }
@@ -1061,6 +1061,7 @@ TEST(ltfaceQ1, sunlightTwoSuns)
 
         {
             SCOPED_TRACE("check point getting both suns");
+            SCOPED_TRACE("and not _light_channel_mask 2 green light_fluoro");
 
             auto samp_optional = Lightgrid_SampleAtPoint(*parsed, {88, 600, -248});
             ASSERT_TRUE(samp_optional.has_value());

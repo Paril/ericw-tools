@@ -447,14 +447,15 @@ inline void set_target_version(const bspversion_t *version)
 }
 
 qbsp_settings::qbsp_settings()
-    : hexen2{this, "hexen2", false, &game_target_group, "target Hexen II's BSP format"},
-      hlbsp{this, "hlbsp", false, &game_target_group, "target Half Life's BSP format"},
-      q2bsp{this, "q2bsp", false, &game_target_group, "target Quake II's BSP format"},
-      qbism{this, "qbism", false, &game_target_group, "target Qbism's extended Quake II BSP format"},
-      bsp2{this, "bsp2", false, &game_target_group, "target Quake's extended BSP2 format"},
-      bsp2rmq{this, "2psb", false, &game_target_group, "target Quake's extended 2PSB format (RMQ compatible)"},
-      sinbsp{this, "sinbsp", false, &game_target_group, "target SiN's BSP format"},
-      nosubdivide{this, "nosubdivide",
+    : hexen2{this, "hexen2", false, &game_target_group, "target Hexen II's BSP format"}, // tests, docs
+      hlbsp{this, "hlbsp", false, &game_target_group, "target Half Life's BSP format"}, // tests, docs
+      q2bsp{this, "q2bsp", false, &game_target_group, "target Quake II's BSP format"}, // tests, docs
+      qbism{this, "qbism", false, &game_target_group, "target Qbism's extended Quake II BSP format"}, // tests, docs
+      bsp2{this, "bsp2", false, &game_target_group, "target Quake's extended BSP2 format"}, // tests, docs
+      bsp2rmq{this, "2psb", false, &game_target_group, // tests, docs
+          "target Quake's extended 2PSB format (RMQ compatible)"},
+      sinbsp{this, "sinbsp", false, &game_target_group, "target SiN's BSP format"}, // tests, docs
+      nosubdivide{this, "nosubdivide", // tests, docs
           [&](const std::string &, parser_base_t &, source src) {
               subdivide.set_value(0, src);
               return true;
@@ -464,26 +465,27 @@ qbsp_settings::qbsp_settings()
           "change settings to allow for (or make adjustments to optimize for the lack of) software support"},
       subdivide{this, "subdivide", 240, &common_format_group,
           "change the subdivide threshold, in luxels. 0 will disable subdivision entirely"},
-      nofill{this, "nofill", false, &debugging_group, "don't perform outside filling"},
-      nomerge{this, "nomerge", false, &debugging_group, "don't perform face merging"},
+      nofill{this, "nofill", false, &debugging_group, "don't perform outside filling"}, // tests, docs
+      nomerge{this, "nomerge", false, &debugging_group, "don't perform face merging"}, // tests, docs
       nomergeacrossliquids{this, "nomergeacrossliquids", false, &common_format_group, "deprecated, no effect"},
       noedgereuse{this, "noedgereuse", false, &debugging_group, "don't reuse edges (for debugging software rendering)"},
       noclip{this, "noclip", false, &common_format_group, "don't write clip nodes (Q1-like BSP formats)"},
       noskip{this, "noskip", false, &debugging_group, "don't remove faces with the 'skip' texture"},
-      nodetail{this, "nodetail", false, &debugging_group, "treat all detail brushes to structural"},
+      nodetail{this, "nodetail", false, &debugging_group, "treat all detail brushes to structural"}, // tests, docs
       chop{this, "chop", false, &debugging_group, "adjust brushes to remove intersections if possible"},
       chopfragment{this, "chopfragment", false, &debugging_group, "always do full fragmentation for chop"},
-      onlyents{this, "onlyents", false, &map_development_group, "only updates .MAP entities"},
+      onlyents{this, "onlyents", false, &map_development_group, "only updates .MAP entities"}, // tests, docs
       splitsky{this, "splitsky", false, &debugging_group, "doesn't combine sky faces into one large face"},
       splitturb{this, {"litwater", "splitturb"}, true, &common_format_group,
           "doesn't combine water faces into one large face"},
       splitspecial{this, "splitspecial", {&splitsky, &splitturb}, &debugging_group,
           "doesn't combine sky and water faces into one large face (splitturb + splitsky)"},
-      transwater{this, "transwater", true, &common_format_group, "compute portal information for transparent water"},
+      transwater{this, "transwater", true, &common_format_group, // tests, docs
+          "compute portal information for transparent water"},
       notextures{this, "notex", false, &common_format_group,
-          "write only placeholder textures to depend upon replacements, keep file sizes down, or to skirt copyrights"},
+          "write only placeholder textures to depend upon replacements, keep file sizes down, or to skirt copyrights"}, // tests, docs
       missing_textures_as_zero_size{
-          this, "missing_textures_as_zero_size", false, &common_format_group, "write missing textures as 0x0"},
+          this, "missing_textures_as_zero_size", false, &common_format_group, "write missing textures as 0x0"}, // tests, docs
       convertmapformat{this, "convert", conversion_t::none,
           {{"quake", conversion_t::quake}, {"quake2", conversion_t::quake2}, {"valve", conversion_t::valve},
               {"bp", conversion_t::bp}},
@@ -499,7 +501,7 @@ qbsp_settings::qbsp_settings()
       oldrottex{this, "oldrottex", false, &debugging_group, "use old rotate_ brush texturing aligned at (0 0 0)"},
       epsilon{this, "epsilon", 0.0001, 0.0, 1.0, &debugging_group, "customize epsilon value for point-on-plane checks"},
       microvolume{this, "microvolume", 0.0, 0.0, 1000.0, &debugging_group, "microbrush volume"},
-      leaktest{this, "leaktest", false, &map_development_group, "make compilation fail if the map leaks"},
+      leaktest{this, "leaktest", false, &map_development_group, "make compilation fail if the map leaks"}, // tests, docs
       outsidedebug{this, "outsidedebug", false, &debugging_group,
           "write a .map after outside filling showing non-visible brush sides"},
       debugchop{this, "debugchop", false, &debugging_group, "write a .map after ChopBrushes"},
@@ -520,19 +522,19 @@ qbsp_settings::qbsp_settings()
       tjunc{this, {"tjunc", "notjunc"}, tjunclevel_t::MWT,
           {{"none", tjunclevel_t::NONE}, {"rotate", tjunclevel_t::ROTATE}, {"retopologize", tjunclevel_t::RETOPOLOGIZE},
               {"mwt", tjunclevel_t::MWT}},
-          &debugging_group, "T-junction fix level"},
+          &debugging_group, "T-junction fix level"}, // tests, docs
       objexport{
           this, "objexport", false, &debugging_group, "export the map file as .OBJ models during various CSG phases"},
-      noextendedsurfflags{this, "noextendedsurfflags", false, &debugging_group, "suppress writing a .texinfo file"},
+      noextendedsurfflags{this, "noextendedsurfflags", false, &debugging_group, "suppress writing a .texinfo file"}, // tests, docs
       noextendedcontentflags{
-          this, "noextendedcontentflags", false, &debugging_group, "suppress writing a .content.json file"},
+          this, "noextendedcontentflags", false, &debugging_group, "suppress writing a .content.json file"}, // tests
       wrbrushes{this, {"wrbrushes", "bspx"}, false, &common_format_group,
-          "includes a list of brushes for brush-based collision"},
+          "includes a list of brushes for brush-based collision"}, // tests, docs
       wrbrushesonly{this, {"wrbrushesonly", "bspxonly"}, {&wrbrushes, &noclip}, &common_format_group,
           "includes BSPX brushes and does not output clipping hulls (wrbrushes + noclip)"},
       bmodelcontents{this, "bmodelcontents", false, &common_format_group,
-          "allow control over brush contents in bmodels, don't force CONTENTS_SOLID"},
-      omitdetail{this, "omitdetail", false, &map_development_group, "omit *all* detail brushes from the compile"},
+          "allow control over brush contents in bmodels, don't force CONTENTS_SOLID"}, // tests, docs
+      omitdetail{this, "omitdetail", false, &map_development_group, "omit *all* detail brushes from the compile"}, // tests, docs
       omitdetailwall{this, "omitdetailwall", false, &map_development_group,
           "func_detail_wall brushes are omitted from the compile"},
       omitdetailillusionary{this, "omitdetailillusionary", false, &map_development_group,
@@ -559,10 +561,10 @@ qbsp_settings::qbsp_settings()
           "allow formats to \"upgrade\" to compatible extended formats when a limit is exceeded (ie Quake BSP to BSP2)"},
       maxedges{[](setting_int32 &setting) { return setting.value() == 0 || setting.value() >= 3; }, this, "maxedges",
           64, &map_development_group,
-          "the max number of edges/vertices on a single face before it is split into another face"},
+          "the max number of edges/vertices on a single face before it is split into another face"}, // tests, docs
       midsplitbrushfraction{this, "midsplitbrushfraction", 0.0, &common_format_group,
           "switch to cheaper partitioning if a node contains this % of brushes in the map"},
-      add{this, "add", "", "", &common_format_group, "the given map file will be appended to the base map"},
+      add{this, "add", "", "", &common_format_group, "the given map file will be appended to the base map"}, // tests, docs
       scale{this, "scale", 1.0, &map_development_group,
           "scales the map brushes and point entity origins by a give factor"},
       loghulls{this, {"loghulls"}, false, &logging_group, "print log output for collision hulls"},

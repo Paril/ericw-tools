@@ -30,6 +30,8 @@ TEST(testmapsQ2, detail)
     EXPECT_EQ(0, leaf0.firstmarksurface);
     EXPECT_EQ(0, leaf0.nummarksurfaces);
     EXPECT_EQ(leaf0.ambient_level, (std::array<uint8_t, NUM_AMBIENTS>{0, 0, 0, 0}));
+    // note, this is inconsistent with original qbsp3 (leaf 0 has Q2_CONTENTS_SOLID and all other fields 0) but makes
+    // more sense
     EXPECT_EQ(CLUSTER_INVALID, leaf0.cluster);
     EXPECT_EQ(AREA_INVALID, leaf0.area);
     EXPECT_EQ(0, leaf0.firstleafbrush);
@@ -115,6 +117,33 @@ TEST(testmapsQ2, detail)
     EXPECT_EQ(prt->portals.size(), 5);
     EXPECT_EQ(prt->portalleafs_real, 0); // not used by Q2
     EXPECT_EQ(prt->portalleafs, 4);
+}
+
+TEST(testmapsQ2, qbism)
+{
+    const auto [bsp, bspx, prt] = LoadTestmap("q2_detail.map", {"-qbism"});
+
+    EXPECT_EQ(GAME_QUAKE_II, bsp.loadversion->game->id);
+    EXPECT_EQ(bsp.loadversion, &bspver_qbism);
+}
+
+TEST(testmapsQ2, qbismAndQ2bsp)
+{
+    {
+        SCOPED_TRACE("don't specify multiple BSP formats");
+
+        auto l = [] { LoadTestmap("q2_detail.map", {"-qbism", "-q2bsp"}); };
+        EXPECT_THAT(
+            l, testing::ThrowsMessage<std::exception>(testing::HasSubstr("BSP version was set by multiple flags")));
+    }
+
+    {
+        SCOPED_TRACE("don't specify multiple BSP formats");
+
+        auto l = [] { LoadTestmap("q2_detail.map", {"-q2bsp", "-qbism"}); };
+        EXPECT_THAT(
+            l, testing::ThrowsMessage<std::exception>(testing::HasSubstr("BSP version was set by multiple flags")));
+    }
 }
 
 TEST(testmapsQ2, Q2DetailWithNodetail)
@@ -838,94 +867,97 @@ TEST(testmapsQ2, tbCleanup)
     }
 }
 
-TEST(testmapsQ2, detailWall)
+class testmapsQ2DetailWall : public testing::TestWithParam<std::string>
+{
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    , testmapsQ2DetailWall, testing::Values("q2_detail_wall.map", "q2_detail_wall_with_detail_bit.map"));
+
+TEST_P(testmapsQ2DetailWall, detailWall)
 {
     // q2_detail_wall_with_detail_bit.map has the DETAIL content flag set on the
     // brushes inside the func_detail_wall. the func_detail_wall should take priority.
-    const std::vector<std::string> maps{"q2_detail_wall.map", "q2_detail_wall_with_detail_bit.map"};
 
-    for (const auto &mapname : maps) {
-        SCOPED_TRACE(mapname);
+    const auto [bsp, bspx, prt] = LoadTestmapQ2(GetParam());
+    auto *game = bsp.loadversion->game;
 
-        const auto [bsp, bspx, prt] = LoadTestmapQ2(mapname);
-        auto *game = bsp.loadversion->game;
+    EXPECT_EQ(GAME_QUAKE_II, game->id);
 
-        EXPECT_EQ(GAME_QUAKE_II, game->id);
+    const auto deleted_face_pos = qvec3d{320, 384, 96};
+    const auto in_detail_wall = qvec3d{320, 384, 100};
 
-        const auto deleted_face_pos = qvec3d{320, 384, 96};
-        const auto in_detail_wall = qvec3d{320, 384, 100};
+    auto *detail_wall_leaf = BSP_FindLeafAtPoint(&bsp, &bsp.dmodels[0], in_detail_wall);
 
-        auto *detail_wall_leaf = BSP_FindLeafAtPoint(&bsp, &bsp.dmodels[0], in_detail_wall);
+    {
+        SCOPED_TRACE("check leaf / brush contents");
 
-        {
-            SCOPED_TRACE("check leaf / brush contents");
+        SCOPED_TRACE(game->create_contents_from_native(detail_wall_leaf->contents).to_string());
+        EXPECT_EQ((Q2_CONTENTS_SOLID | Q2_CONTENTS_DETAIL), detail_wall_leaf->contents);
 
-            SCOPED_TRACE(game->create_contents_from_native(detail_wall_leaf->contents).to_string());
-            EXPECT_EQ((Q2_CONTENTS_SOLID | Q2_CONTENTS_DETAIL), detail_wall_leaf->contents);
+        ASSERT_EQ(1, Leaf_Brushes(&bsp, detail_wall_leaf).size());
+        auto *brush = Leaf_Brushes(&bsp, detail_wall_leaf).at(0);
 
-            ASSERT_EQ(1, Leaf_Brushes(&bsp, detail_wall_leaf).size());
-            auto *brush = Leaf_Brushes(&bsp, detail_wall_leaf).at(0);
+        SCOPED_TRACE(game->create_contents_from_native(brush->contents).to_string());
+        EXPECT_EQ((Q2_CONTENTS_SOLID | Q2_CONTENTS_DETAIL), brush->contents);
+    }
 
-            SCOPED_TRACE(game->create_contents_from_native(brush->contents).to_string());
-            EXPECT_EQ((Q2_CONTENTS_SOLID | Q2_CONTENTS_DETAIL), brush->contents);
-        }
+    {
+        SCOPED_TRACE("check fully covered face is deleted");
+        EXPECT_FALSE(BSP_FindFaceAtPoint(&bsp, &bsp.dmodels[0], deleted_face_pos));
+    }
 
-        {
-            SCOPED_TRACE("check fully covered face is deleted");
-            EXPECT_FALSE(BSP_FindFaceAtPoint(&bsp, &bsp.dmodels[0], deleted_face_pos));
-        }
+    {
+        SCOPED_TRACE("check floor under detail fence is not deleted, and not split");
 
-        {
-            SCOPED_TRACE("check floor under detail fence is not deleted, and not split");
+        auto *face_under_fence = BSP_FindFaceAtPoint(&bsp, &bsp.dmodels[0], qvec3d{320, 348, 96});
+        auto *face_outside_fence = BSP_FindFaceAtPoint(&bsp, &bsp.dmodels[0], qvec3d{320, 312, 96});
 
-            auto *face_under_fence = BSP_FindFaceAtPoint(&bsp, &bsp.dmodels[0], qvec3d{320, 348, 96});
-            auto *face_outside_fence = BSP_FindFaceAtPoint(&bsp, &bsp.dmodels[0], qvec3d{320, 312, 96});
-
-            EXPECT_TRUE(face_under_fence);
-            EXPECT_EQ(face_under_fence, face_outside_fence);
-        }
+        EXPECT_TRUE(face_under_fence);
+        EXPECT_EQ(face_under_fence, face_outside_fence);
     }
 }
 
-TEST(testmapsQ2, detailFence)
+class testmapsQ2DetailFence : public testing::TestWithParam<std::string>
 {
-    const std::vector<std::string> maps{"q2_detail_fence.map", "q2_detail_fence_with_detail_bit.map"};
+};
 
-    for (const auto &mapname : maps) {
-        SCOPED_TRACE(mapname);
+INSTANTIATE_TEST_SUITE_P(
+    , testmapsQ2DetailFence, testing::Values("q2_detail_fence.map", "q2_detail_fence_with_detail_bit.map"));
 
-        const auto [bsp, bspx, prt] = LoadTestmapQ2(mapname);
-        auto *game = bsp.loadversion->game;
+TEST_P(testmapsQ2DetailFence, detailFence)
+{
+    const auto [bsp, bspx, prt] = LoadTestmapQ2(GetParam());
+    auto *game = bsp.loadversion->game;
 
-        EXPECT_EQ(GAME_QUAKE_II, game->id);
+    EXPECT_EQ(GAME_QUAKE_II, game->id);
 
-        auto *detail_wall_leaf = BSP_FindLeafAtPoint(&bsp, &bsp.dmodels[0], qvec3d{320, 384, 100});
+    auto *detail_wall_leaf = BSP_FindLeafAtPoint(&bsp, &bsp.dmodels[0], qvec3d{320, 384, 100});
 
-        {
-            SCOPED_TRACE("check leaf / brush contents");
-            SCOPED_TRACE(game->create_contents_from_native(detail_wall_leaf->contents).to_string());
+    {
+        SCOPED_TRACE("check leaf / brush contents");
+        SCOPED_TRACE(game->create_contents_from_native(detail_wall_leaf->contents).to_string());
 
-            EXPECT_EQ((Q2_CONTENTS_WINDOW | Q2_CONTENTS_DETAIL | Q2_CONTENTS_TRANSLUCENT), detail_wall_leaf->contents);
+        EXPECT_EQ((Q2_CONTENTS_WINDOW | Q2_CONTENTS_DETAIL | Q2_CONTENTS_TRANSLUCENT), detail_wall_leaf->contents);
 
-            ASSERT_EQ(1, Leaf_Brushes(&bsp, detail_wall_leaf).size());
-            EXPECT_EQ((Q2_CONTENTS_WINDOW | Q2_CONTENTS_DETAIL | Q2_CONTENTS_TRANSLUCENT),
-                Leaf_Brushes(&bsp, detail_wall_leaf).at(0)->contents);
-        }
+        ASSERT_EQ(1, Leaf_Brushes(&bsp, detail_wall_leaf).size());
+        EXPECT_EQ((Q2_CONTENTS_WINDOW | Q2_CONTENTS_DETAIL | Q2_CONTENTS_TRANSLUCENT),
+            Leaf_Brushes(&bsp, detail_wall_leaf).at(0)->contents);
+    }
 
-        {
-            SCOPED_TRACE("check fully covered face is not deleted");
-            EXPECT_TRUE(BSP_FindFaceAtPoint(&bsp, &bsp.dmodels[0], qvec3d{320, 384, 96}));
-        }
+    {
+        SCOPED_TRACE("check fully covered face is not deleted");
+        EXPECT_TRUE(BSP_FindFaceAtPoint(&bsp, &bsp.dmodels[0], qvec3d{320, 384, 96}));
+    }
 
-        {
-            SCOPED_TRACE("check floor under detail fence is not deleted, and not split");
+    {
+        SCOPED_TRACE("check floor under detail fence is not deleted, and not split");
 
-            auto *face_under_fence = BSP_FindFaceAtPoint(&bsp, &bsp.dmodels[0], qvec3d{320, 348, 96});
-            auto *face_outside_fence = BSP_FindFaceAtPoint(&bsp, &bsp.dmodels[0], qvec3d{320, 312, 96});
+        auto *face_under_fence = BSP_FindFaceAtPoint(&bsp, &bsp.dmodels[0], qvec3d{320, 348, 96});
+        auto *face_outside_fence = BSP_FindFaceAtPoint(&bsp, &bsp.dmodels[0], qvec3d{320, 312, 96});
 
-            EXPECT_TRUE(face_under_fence);
-            EXPECT_EQ(face_under_fence, face_outside_fence);
-        }
+        EXPECT_TRUE(face_under_fence);
+        EXPECT_EQ(face_under_fence, face_outside_fence);
     }
 }
 
@@ -1220,4 +1252,50 @@ TEST(testmapsQ2, chopOrder1)
 
     EXPECT_THAT(TexNames(bsp, BSP_FindFacesAtPoint(&bsp, &bsp.dmodels[0], {0, 0, 0})),
         testing::UnorderedElementsAre("e1u1/+0btshoot2"));
+}
+
+TEST(testmapsQ2, brushListMerging)
+{
+    SCOPED_TRACE("when adjacent leafs are merged, their brush lists should merge as well");
+
+    const auto [bsp, bspx, prt] = LoadTestmapQ2("q2_cubes.map");
+
+    ASSERT_EQ(bsp.dleafs.size(), 8); // 1 unused (leaf 0) + 6 sides of a cube + 1 cube interior (empty)
+
+    auto *floor_leaf = BSP_FindLeafAtPoint(&bsp, &bsp.dmodels[0], {0, 0, 0});
+    EXPECT_EQ(2, floor_leaf->numleafbrushes);
+}
+
+TEST(testmapsQ2, nomergeOff)
+{
+    SCOPED_TRACE("the floor is merged into 1 face by default");
+
+    const auto [bsp, bspx, prt] = LoadTestmapQ2("q2_cubes.map");
+
+    auto *floor_face = BSP_FindFaceAtPoint(&bsp, &bsp.dmodels[0], {0, 0, 16});
+    const auto w = Face_Winding(&bsp, floor_face);
+
+    const auto expected = winding_t{{-48, 64, 16}, {48, 64, 16}, {48, -48, 16}, {-48, -48, 16}};
+
+    EXPECT_TRUE(w.directional_equal(expected));
+}
+
+TEST(testmapsQ2, nomergeOn)
+{
+    SCOPED_TRACE("with -nomerge, the top faces of the two floor brushes aren't merged");
+
+    const auto [bsp, bspx, prt] = LoadTestmapQ2("q2_cubes.map", {"-nomerge"});
+
+    auto *floor_face_top = BSP_FindFaceAtPoint(&bsp, &bsp.dmodels[0], {0, 32, 16});
+    auto *floor_face_bot = BSP_FindFaceAtPoint(&bsp, &bsp.dmodels[0], {0, -24, 16});
+    ASSERT_NE(floor_face_top, floor_face_bot);
+
+    const auto top = Face_Winding(&bsp, floor_face_top);
+    const auto bot = Face_Winding(&bsp, floor_face_bot);
+
+    const auto expected_top = winding_t{{-48, 64, 16}, {48, 64, 16}, {48, 0, 16}, {-48, 0, 16}};
+    const auto expected_bot = winding_t{{-48, 0, 16}, {48, 0, 16}, {48, -48, 16}, {-48, -48, 16}};
+
+    EXPECT_TRUE(top.directional_equal(expected_top));
+    EXPECT_TRUE(bot.directional_equal(expected_bot));
 }
